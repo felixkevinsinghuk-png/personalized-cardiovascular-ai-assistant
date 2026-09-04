@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}RetinalXAI — Upload Retinal Image{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+
+        <!-- Page heading -->
+        <div class="text-center mb-4">
+            <div class="xai-hero-icon mx-auto mb-3">
+                <i class="bi bi-eye-fill"></i>
+            </div>
+            <h1 class="xai-page-title">Retinal CVD Risk Assessment</h1>
+            <p class="text-muted">
+                Upload a retinal fundus image to receive an AI-powered cardiovascular
+                risk analysis with visual explanations and a written report.
+            </p>
+        </div>
+
+        <!-- Upload card -->
+        <div class="card xai-card shadow-sm mb-4" id="upload-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-upload me-2"></i>Upload Retinal Image
+            </div>
+            <div class="card-body p-4">
+                <form id="upload-form" action="{{ url_for('predict') }}" method="post"
+                      enctype="multipart/form-data" novalidate>
+
+                    <!-- File input -->
+                    <div class="mb-4">
+                        <label for="file-input" class="form-label fw-semibold">
+                            Select Image <span class="text-muted fw-normal">(JPG or PNG)</span>
+                        </label>
+                        <input
+                            class="form-control form-control-lg xai-file-input"
+                            type="file"
+                            id="file-input"
+                            name="file"
+                            accept=".jpg,.jpeg,.png"
+                            required
+                        />
+                        <div class="form-text mt-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Maximum file size: 16 MB. Images are processed locally — nothing
+                            is sent to external servers.
+                        </div>
+                    </div>
+
+                    <!-- Clinical history input (optional) -->
+                    <div class="mb-4">
+                        <label for="clinical-history-input" class="form-label fw-semibold">
+                            Optional: Describe Your Medical History
+                        </label>
+                        <textarea
+                            class="form-control xai-file-input"
+                            id="clinical-history-input"
+                            name="clinical_history"
+                            rows="3"
+                            placeholder="e.g. diabetic for 14 years, had a stent placed in 2023, high blood pressure, family history of heart disease. Leave blank if unknown."
+                        ></textarea>
+                        <div class="form-text mt-1">
+                            <i class="bi bi-shield-check me-1"></i>
+                            This information is optional. It helps the AI consider your full clinical picture alongside your retinal scan. It is processed locally and never sent to any external server.
+                        </div>
+                    </div>
+
+                    <!-- Image preview -->
+                    <div id="preview-container" class="mb-4 d-none text-center">
+                        <img id="image-preview" src="#" alt="Selected retinal image preview"
+                             class="img-fluid rounded xai-preview-img" />
+                        <p class="text-muted small mt-2" id="preview-filename"></p>
+                    </div>
+
+                    <!-- Submit button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-xai-primary btn-lg" id="submit-btn">
+                            <i class="bi bi-activity me-2"></i>Analyse Image
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Loading state (hidden initially) -->
+                <div id="loading-indicator" class="text-center mt-4 d-none">
+                    <div class="spinner-border text-xai-accent" role="status"
+                         style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Analysing...</span>
+                    </div>
+                    <p class="mt-3 fw-semibold text-muted" id="loading-text">
+                        Running ML pipeline — this may take 30–60 seconds…
+                    </p>
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-xai-accent"
+                             role="progressbar" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Research disclaimer card -->
+        <div class="alert alert-warning d-flex gap-3" role="alert" id="disclaimer-card">
+            <div class="flex-shrink-0 fs-4">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div>
+                <h5 class="alert-heading mb-1">Research Tool Only</h5>
+                <p class="mb-0 small">
+                    This application is an academic research prototype. It uses AI models trained
+                    on retinal fundus images to estimate cardiovascular risk indicators. Outputs
+                    <strong>must not</strong> be used for clinical decision-making, diagnosis, or
+                    treatment. Always consult a qualified medical professional for health concerns.
+                </p>
+            </div>
+        </div>
+
+        <!-- How it works -->
+        <div class="card xai-card shadow-sm mt-4" id="how-it-works-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-diagram-3 me-2"></i>How It Works
+            </div>
+            <div class="card-body">
+                <ol class="list-group list-group-numbered list-group-flush" id="pipeline-steps">
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>Preprocessing</strong>
+                            <div class="text-muted small">Black border cropped · Resized to 224×224 · ImageNet normalised</div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>DR Grading (ResNet-50)</strong>
+                            <div class="text-muted small">Classifies diabetic retinopathy severity — 5 grades (0–4)</div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>CVD Risk Scoring (EfficientNet-B4)</strong>
+                            <div class="text-muted small">Detects hypertensive retinopathy markers — outputs 0.0–1.0 risk score</div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>Weighted Fusion</strong>
+                            <div class="text-muted small">Combines both scores (w=0.4/0.6) into a single fused risk score</div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>Grad-CAM Explanation</strong>
+                            <div class="text-muted small">Highlights retinal regions that influenced the prediction</div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex gap-3 align-items-start border-0 py-2">
+                        <div>
+                            <strong>AI Report (BioMistral / MedGemma)</strong>
+                            <div class="text-muted small">Local medical LLM generates a structured written explanation</div>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Image preview on file select
+    const fileInput  = document.getElementById('file-input');
+    const preview    = document.getElementById('image-preview');
+    const previewBox = document.getElementById('preview-container');
+    const filename   = document.getElementById('preview-filename');
+
+    fileInput.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            preview.src = e.target.result;
+            filename.textContent = file.name;
+            previewBox.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Show loading state on form submit
+    const form      = document.getElementById('upload-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const loading   = document.getElementById('loading-indicator');
+
+    form.addEventListener('submit', function () {
+        if (!fileInput.files.length) return;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analysing…';
+        loading.classList.remove('d-none');
+    });
+</script>
+{% endblock %}

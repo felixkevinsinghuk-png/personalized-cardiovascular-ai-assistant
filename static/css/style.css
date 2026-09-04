@@ -1,0 +1,473 @@
+/* ==========================================================================
+   static/css/style.css
+   Custom styles for RetinalXAI — built on top of Bootstrap 5.
+   Colour palette: Navy #003087 | Sky blue #0EA5E9 | Dark bg #0F172A
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Google Fonts
+   -------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* --------------------------------------------------------------------------
+   CSS Custom Properties (Design Tokens)
+   -------------------------------------------------------------------------- */
+:root {
+    --xai-navy:         #003087;
+    --xai-navy-dark:    #001d52;
+    --xai-accent:       #0EA5E9;
+    --xai-accent-hover: #0284c7;
+    --xai-bg:           #0F172A;
+    --xai-surface:      #1E293B;
+    --xai-border:       #334155;
+    --xai-text:         #E2E8F0;
+    --xai-muted:        #94A3B8;
+
+    --xai-low:          #22c55e;
+    --xai-moderate:     #f59e0b;
+    --xai-high:         #ef4444;
+
+    --xai-radius:       0.75rem;
+    --xai-radius-sm:    0.5rem;
+    --xai-transition:   all 0.2s ease;
+    --xai-shadow:       0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   Global / Base
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 1rem;
+    background-color: var(--xai-bg);
+    color: var(--xai-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main.container {
+    flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Navbar
+   -------------------------------------------------------------------------- */
+.xai-navbar {
+    background: linear-gradient(135deg, var(--xai-navy-dark) 0%, var(--xai-navy) 100%);
+    border-bottom: 1px solid rgba(14, 165, 233, 0.2);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+    padding: 0.75rem 1rem;
+}
+
+.xai-navbar .navbar-brand {
+    font-size: 1.2rem;
+    letter-spacing: 0.01em;
+}
+
+.text-xai-accent {
+    color: var(--xai-accent) !important;
+}
+
+.xai-navbar .nav-link {
+    color: rgba(255, 255, 255, 0.8) !important;
+    transition: var(--xai-transition);
+    border-radius: var(--xai-radius-sm);
+    padding: 0.4rem 0.75rem;
+}
+
+.xai-navbar .nav-link:hover,
+.xai-navbar .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(14, 165, 233, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+.xai-footer {
+    background: linear-gradient(135deg, var(--xai-navy-dark) 0%, var(--xai-navy) 100%);
+    border-top: 1px solid rgba(14, 165, 233, 0.2);
+    padding: 1rem 0;
+}
+
+/* --------------------------------------------------------------------------
+   Page titles
+   -------------------------------------------------------------------------- */
+.xai-page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--xai-text);
+    margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Cards
+   -------------------------------------------------------------------------- */
+.xai-card {
+    background-color: var(--xai-surface);
+    border: 1px solid var(--xai-border);
+    border-radius: var(--xai-radius);
+    box-shadow: var(--xai-shadow);
+    transition: var(--xai-transition);
+}
+
+.xai-card:hover {
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+.xai-card-header {
+    background: linear-gradient(135deg, var(--xai-navy) 0%, var(--xai-navy-dark) 100%);
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: var(--xai-radius) var(--xai-radius) 0 0 !important;
+    border-bottom: 1px solid rgba(14, 165, 233, 0.3);
+    padding: 0.85rem 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Hero icon (upload page)
+   -------------------------------------------------------------------------- */
+.xai-hero-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--xai-navy) 0%, var(--xai-accent) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: #ffffff;
+    box-shadow: 0 0 30px rgba(14, 165, 233, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.btn-xai-primary {
+    background: linear-gradient(135deg, var(--xai-navy) 0%, var(--xai-accent) 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--xai-radius-sm);
+    font-weight: 600;
+    transition: var(--xai-transition);
+    box-shadow: 0 2px 12px rgba(14, 165, 233, 0.25);
+}
+
+.btn-xai-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--xai-accent-hover) 0%, var(--xai-navy) 100%);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(14, 165, 233, 0.4);
+}
+
+.btn-xai-primary:disabled {
+    opacity: 0.65;
+}
+
+/* --------------------------------------------------------------------------
+   File input
+   -------------------------------------------------------------------------- */
+.xai-file-input {
+    background-color: var(--xai-bg);
+    border-color: var(--xai-border);
+    color: var(--xai-text);
+    border-radius: var(--xai-radius-sm);
+    transition: var(--xai-transition);
+}
+
+.xai-file-input:focus {
+    border-color: var(--xai-accent);
+    box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.25);
+    background-color: var(--xai-bg);
+    color: var(--xai-text);
+}
+
+/* --------------------------------------------------------------------------
+   Image preview
+   -------------------------------------------------------------------------- */
+.xai-preview-img {
+    max-height: 200px;
+    border: 2px solid var(--xai-border);
+    border-radius: var(--xai-radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Risk badges
+   -------------------------------------------------------------------------- */
+.xai-badge-high {
+    background-color: var(--xai-high);
+    color: #ffffff;
+    border-radius: 0.5rem;
+}
+
+.xai-badge-moderate {
+    background-color: var(--xai-moderate);
+    color: #000000;
+    border-radius: 0.5rem;
+}
+
+.xai-badge-low {
+    background-color: var(--xai-low);
+    color: #000000;
+    border-radius: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   Metrics table
+   -------------------------------------------------------------------------- */
+.xai-metrics-table td {
+    color: var(--xai-text);
+    border: none;
+    padding: 0.35rem 0.25rem;
+    font-size: 0.9rem;
+}
+
+.xai-metrics-table tr {
+    border-bottom: 1px solid var(--xai-border);
+}
+
+.xai-metrics-table tr:last-child {
+    border-bottom: none;
+}
+
+/* --------------------------------------------------------------------------
+   Heatmap image
+   -------------------------------------------------------------------------- */
+.xai-heatmap-img {
+    max-width: 100%;
+    border-radius: var(--xai-radius-sm);
+    border: 2px solid var(--xai-border);
+    transition: var(--xai-transition);
+}
+
+.xai-heatmap-img:hover {
+    border-color: var(--xai-accent);
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   LLM report text area
+   -------------------------------------------------------------------------- */
+.xai-report-text {
+    white-space: pre-wrap;
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--xai-text);
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.xai-report-text::-webkit-scrollbar {
+    width: 5px;
+}
+
+.xai-report-text::-webkit-scrollbar-thumb {
+    background: var(--xai-border);
+    border-radius: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Chatbot
+   -------------------------------------------------------------------------- */
+.xai-chat-box {
+    background-color: var(--xai-bg);
+    border: 1px solid var(--xai-border);
+    border-radius: var(--xai-radius-sm);
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: 280px;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.xai-chat-box::-webkit-scrollbar {
+    width: 5px;
+}
+
+.xai-chat-box::-webkit-scrollbar-thumb {
+    background: var(--xai-border);
+    border-radius: 10px;
+}
+
+.xai-chat-msg {
+    max-width: 85%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 1rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    word-break: break-word;
+    animation: fadeInUp 0.2s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.xai-chat-user {
+    background: linear-gradient(135deg, var(--xai-navy) 0%, var(--xai-accent) 100%);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.xai-chat-bot {
+    background-color: var(--xai-surface);
+    color: var(--xai-text);
+    border: 1px solid var(--xai-border);
+    align-self: flex-start;
+    border-bottom-left-radius: 0.25rem;
+}
+
+/* Typing indicator dots */
+.xai-chat-typing span {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: var(--xai-muted);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: typing-bounce 1.2s infinite;
+}
+
+.xai-chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.xai-chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+.xai-chat-input {
+    background-color: var(--xai-bg);
+    border-color: var(--xai-border);
+    color: var(--xai-text);
+    border-radius: var(--xai-radius-sm);
+}
+
+.xai-chat-input:focus {
+    background-color: var(--xai-bg);
+    border-color: var(--xai-accent);
+    color: var(--xai-text);
+    box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.25);
+}
+
+/* --------------------------------------------------------------------------
+   History table
+   -------------------------------------------------------------------------- */
+.xai-history-table {
+    color: var(--xai-text);
+    margin-bottom: 0;
+}
+
+.xai-history-table thead th {
+    background-color: var(--xai-navy);
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom: 2px solid rgba(14, 165, 233, 0.3);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    padding: 0.85rem 1rem;
+}
+
+.xai-history-table tbody tr {
+    border-bottom: 1px solid var(--xai-border);
+    transition: var(--xai-transition);
+}
+
+.xai-history-table tbody tr:hover {
+    background-color: rgba(14, 165, 233, 0.05);
+}
+
+.xai-history-table td {
+    border: none;
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   Bootstrap overrides for dark theme
+   -------------------------------------------------------------------------- */
+.form-text,
+.text-muted {
+    color: var(--xai-muted) !important;
+}
+
+.alert-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: var(--xai-text);
+}
+
+.alert-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: var(--xai-text);
+}
+
+.btn-outline-secondary {
+    border-color: var(--xai-border);
+    color: var(--xai-muted);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--xai-border);
+    color: var(--xai-text);
+    border-color: var(--xai-border);
+}
+
+.btn-outline-primary {
+    border-color: var(--xai-accent);
+    color: var(--xai-accent);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--xai-accent);
+    color: #ffffff;
+}
+
+.list-group-item {
+    background-color: transparent;
+    color: var(--xai-text);
+}
+
+.progress {
+    background-color: var(--xai-border);
+}
+
+.bg-xai-accent {
+    background-color: var(--xai-accent) !important;
+}
+
+.fs-xs {
+    font-size: 0.7rem;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .xai-page-title {
+        font-size: 1.4rem;
+    }
+
+    .xai-chat-box {
+        max-height: 220px;
+    }
+}

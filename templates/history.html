@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}RetinalXAI — Analysis History{% endblock %}
+
+{% block content %}
+
+<!-- Page heading -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="xai-page-title mb-1">Analysis History</h1>
+        <p class="text-muted mb-0">
+            All past retinal image analyses — {{ predictions|length }} record{{ 's' if predictions|length != 1 else '' }} stored locally.
+        </p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-xai-primary" id="btn-new-analysis">
+        <i class="bi bi-upload me-1"></i>New Analysis
+    </a>
+</div>
+
+{% if predictions %}
+
+<!-- History table -->
+<div class="card xai-card shadow-sm" id="history-card">
+    <div class="card-header xai-card-header">
+        <i class="bi bi-table me-2"></i>All Predictions
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover xai-history-table mb-0" id="history-table">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Date / Time</th>
+                        <th scope="col">Image</th>
+                        <th scope="col">DR Grade</th>
+                        <th scope="col">CVD Score</th>
+                        <th scope="col">Fused Score</th>
+                        <th scope="col">Risk Level</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pred in predictions %}
+                    <tr id="row-{{ pred.id }}">
+                        <td class="text-muted small align-middle">{{ pred.id }}</td>
+                        <td class="align-middle small">
+                            {{ pred.created_at.strftime('%d %b %Y') }}<br />
+                            <span class="text-muted">{{ pred.created_at.strftime('%H:%M') }}</span>
+                        </td>
+                        <td class="align-middle">
+                            <span class="text-muted small text-truncate d-inline-block"
+                                  style="max-width: 130px;" title="{{ pred.image_filename }}">
+                                {{ pred.image_filename }}
+                            </span>
+                        </td>
+                        <td class="align-middle fw-semibold">
+                            {{ pred.dr_grade }}/4
+                            <div class="text-muted small">{{ pred.dr_label }}</div>
+                        </td>
+                        <td class="align-middle">{{ "%.4f"|format(pred.cvd_score) }}</td>
+                        <td class="align-middle">{{ "%.4f"|format(pred.fused_score) }}</td>
+                        <td class="align-middle">
+                            {% if pred.risk_level == 'High' %}
+                                <span class="badge xai-badge-high" id="badge-{{ pred.id }}">
+                                    <i class="bi bi-exclamation-circle me-1"></i>High
+                                </span>
+                            {% elif pred.risk_level == 'Moderate' %}
+                                <span class="badge xai-badge-moderate" id="badge-{{ pred.id }}">
+                                    <i class="bi bi-dash-circle me-1"></i>Moderate
+                                </span>
+                            {% else %}
+                                <span class="badge xai-badge-low" id="badge-{{ pred.id }}">
+                                    <i class="bi bi-check-circle me-1"></i>Low
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="align-middle">
+                            <a href="{{ url_for('results', prediction_id=pred.id) }}"
+                               class="btn btn-sm btn-outline-primary" id="view-btn-{{ pred.id }}">
+                                <i class="bi bi-eye me-1"></i>View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+
+<!-- Empty state -->
+<div class="text-center py-5" id="empty-state">
+    <div class="xai-hero-icon mx-auto mb-3 opacity-50">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h2 class="h4 text-muted">No analyses yet</h2>
+    <p class="text-muted">Upload a retinal fundus image to get started.</p>
+    <a href="{{ url_for('index') }}" class="btn btn-xai-primary mt-2" id="btn-get-started">
+        <i class="bi bi-upload me-1"></i>Upload First Image
+    </a>
+</div>
+
+{% endif %}
+{% endblock %}

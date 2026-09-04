@@ -1,0 +1,16 @@
+.DS_Store
+.idea/
+__pycache__/
+*.pyc
+logs/
+mysql_data/
+ollama_models/
+models/
+data/
+*.md
+!Documentation.md
+!Technical_Decisions_and_Limitations.md
+!AI_Context_Export.md
+!plan.md
+!training_results.md
+!update plan.md

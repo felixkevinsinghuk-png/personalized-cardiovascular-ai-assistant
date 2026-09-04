@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}RetinalXAI — Results #{{ prediction.id }}{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js for the risk gauge -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="xai-page-title mb-1">Analysis Results</h1>
+        <p class="text-muted mb-0">
+            <i class="bi bi-hash"></i>{{ prediction.id }} &nbsp;·&nbsp;
+            <i class="bi bi-calendar3 me-1"></i>{{ prediction.created_at.strftime('%d %b %Y, %H:%M') }}
+            &nbsp;·&nbsp;
+            <i class="bi bi-image me-1"></i>{{ prediction.image_filename }}
+        </p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary" id="btn-new-analysis">
+        <i class="bi bi-upload me-1"></i>New Analysis
+    </a>
+</div>
+
+<!-- Limitation Banner -->
+<div class="alert alert-warning d-flex gap-3 mb-4 shadow-sm" role="alert" id="limitation-banner">
+    <div class="flex-shrink-0 fs-4">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+    </div>
+    <div>
+        <h5 class="alert-heading mb-1">Important System Limitation</h5>
+        <p class="mb-0 small">
+            This system assesses retinal biomarkers only. Conditions such as coronary artery disease, structural valve defects,
+            and pre-symptomatic systemic disease cannot be detected from retinal imaging. Your clinical history has been used 
+            to supplement this assessment where possible.
+        </p>
+    </div>
+</div>
+
+<!-- ================================================================
+     Two-column layout
+================================================================ -->
+<div class="row g-4">
+
+    <!-- ============================================================
+         LEFT COLUMN (40%) — Metrics + Heatmap + Gauge
+    ============================================================ -->
+    <div class="col-lg-5">
+
+        <!-- Risk score metrics card -->
+        <div class="card xai-card shadow-sm mb-4" id="metrics-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-bar-chart-line me-2"></i>Risk Metrics
+            </div>
+            <div class="card-body">
+
+                <!-- Risk level badge (large) -->
+                <div class="text-center mb-4">
+                    {% if prediction.risk_level == 'High' %}
+                        <span class="badge xai-badge-high fs-5 px-4 py-2" id="risk-badge">
+                            <i class="bi bi-exclamation-circle me-1"></i>{{ prediction.risk_level }} Risk
+                        </span>
+                    {% elif prediction.risk_level == 'Moderate' %}
+                        <span class="badge xai-badge-moderate fs-5 px-4 py-2" id="risk-badge">
+                            <i class="bi bi-dash-circle me-1"></i>{{ prediction.risk_level }} Risk
+                        </span>
+                    {% elif prediction.risk_level == 'Borderline' %}
+                        <span class="badge bg-warning text-dark fs-5 px-4 py-2" id="risk-badge">
+                            <i class="bi bi-exclamation-triangle me-1"></i>{{ prediction.risk_level }} Risk
+                        </span>
+                    {% else %}
+                        <span class="badge xai-badge-low fs-5 px-4 py-2" id="risk-badge">
+                            <i class="bi bi-check-circle me-1"></i>{{ prediction.risk_level }} Risk
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Score Breakdown -->
+                <div class="mb-3">
+                    {% if prediction.clinical_context_score %}
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Retinal DR Score (Weight: 30%)</span>
+                            <span class="fw-semibold">{{ "%.4f"|format(prediction.dr_grade / 4.0) }}</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-info" style="width: {{ (prediction.dr_grade / 4.0) * 100 }}%"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Retinal CVD Score (Weight: 45%)</span>
+                            <span class="fw-semibold">{{ "%.4f"|format(prediction.cvd_score) }}</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-primary" style="width: {{ prediction.cvd_score * 100 }}%"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Clinical Context Score (Weight: 25%)</span>
+                            <span class="fw-semibold">{{ "%.4f"|format(prediction.clinical_context_score) }}</span>
+                        </div>
+                        <div class="progress mb-4" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: {{ prediction.clinical_context_score * 100 }}%"></div>
+                        </div>
+                    {% else %}
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Retinal DR Score (Weight: 40%)</span>
+                            <span class="fw-semibold">{{ "%.4f"|format(prediction.dr_grade / 4.0) }}</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-info" style="width: {{ (prediction.dr_grade / 4.0) * 100 }}%"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Retinal CVD Score (Weight: 60%)</span>
+                            <span class="fw-semibold">{{ "%.4f"|format(prediction.cvd_score) }}</span>
+                        </div>
+                        <div class="progress mb-4" style="height: 8px;">
+                            <div class="progress-bar bg-primary" style="width: {{ prediction.cvd_score * 100 }}%"></div>
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded">
+                        <span class="text-muted fw-semibold">Final Fused Score</span>
+                        <span class="fs-4 fw-bold text-dark">{{ "%.4f"|format(prediction.fused_score) }}</span>
+                    </div>
+                </div>
+
+                <!-- Risk gauge chart -->
+                <div class="mt-3 text-center">
+                    <canvas id="risk-gauge" width="220" height="120"
+                            aria-label="Risk score gauge" role="img"></canvas>
+                    <p class="text-muted small mt-1">Fused Risk Score Gauge</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clinical History Card -->
+        {% if prediction.clinical_history_text %}
+        <div class="card xai-card shadow-sm mb-4" id="clinical-history-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-file-earmark-medical me-2"></i>Clinical History Considered
+            </div>
+            <div class="card-body">
+                <div class="bg-light p-3 rounded text-muted fst-italic mb-3">
+                    "{{ prediction.clinical_history_text }}"
+                </div>
+                
+                <div class="d-flex justify-content-between small mb-1">
+                    <span class="text-muted">Extracted Clinical Context Score</span>
+                    <span class="fw-semibold">{{ "%.4f"|format(prediction.clinical_context_score) }}</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ prediction.clinical_context_score * 100 }}%"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Retinal Feature Summary (Captioning) -->
+        {% if prediction.retinal_caption %}
+        <div class="card xai-card shadow-sm mb-4" id="caption-card">
+            <div class="card-header xai-card-header bg-light">
+                <i class="bi bi-text-paragraph me-2"></i>Retinal Feature Summary
+                <span class="badge bg-secondary ms-2 small">Vision-Language Module</span>
+            </div>
+            <div class="card-body">
+                <p class="mb-0 text-dark fw-medium">
+                    {{ prediction.retinal_caption }}
+                </p>
+                <div class="text-muted small mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    This descriptive caption was extracted directly from the image and passed to the LLM to provide richer context for the final report.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Grad-CAM heatmap card -->
+        <div class="card xai-card shadow-sm" id="heatmap-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-fire me-2"></i>Grad-CAM Heatmap
+                <span class="badge bg-secondary ms-2 small">ResNet-50</span>
+            </div>
+            <div class="card-body text-center">
+                {% if heatmap %}
+                    <img src="{{ url_for('static', filename=heatmap.heatmap_path) }}"
+                         alt="Grad-CAM heatmap highlighting retinal regions of interest"
+                         class="img-fluid rounded xai-heatmap-img" id="heatmap-image" />
+                    <p class="text-muted small mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Red regions = high activation (most influential areas).
+                        Blue regions = low activation.
+                    </p>
+                {% else %}
+                    <p class="text-muted">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Heatmap not available for this prediction.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div><!-- end left column -->
+
+    <!-- ============================================================
+         RIGHT COLUMN (60%) — LLM Report + Chatbot
+    ============================================================ -->
+    <div class="col-lg-7">
+
+        <!-- LLM Report card -->
+        <div class="card xai-card shadow-sm mb-4" id="report-card">
+            <div class="card-header xai-card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-file-text me-2"></i>AI Analysis Report</span>
+                {% if report %}
+                    <span class="badge bg-secondary small">{{ report.llm_model }}</span>
+                    {% if report.was_filtered %}
+                        <span class="badge bg-warning text-dark small ms-1">
+                            <i class="bi bi-shield-check me-1"></i>Safety filtered
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if report %}
+                    <div class="xai-report-text" id="report-text">{{ report.report_text }}</div>
+                {% else %}
+                    <p class="text-muted">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        No report was generated for this prediction.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Chatbot card -->
+        <div class="card xai-card shadow-sm" id="chatbot-card">
+            <div class="card-header xai-card-header">
+                <i class="bi bi-chat-dots me-2"></i>Ask a Follow-up Question
+            </div>
+            <div class="card-body d-flex flex-column" style="min-height: 380px;">
+
+                <!-- Chat message area -->
+                <div id="chat-messages" class="xai-chat-box flex-grow-1 mb-3">
+                    <div class="xai-chat-msg xai-chat-bot" id="chat-welcome">
+                        <i class="bi bi-robot me-1"></i>
+                        Hello! I can answer questions about these retinal analysis results.
+                        Ask about the DR grade, CVD risk score, heatmap, or the methodology.
+                        Remember: this is a research tool only.
+                    </div>
+                </div>
+
+                <!-- Input area -->
+                <div class="d-flex gap-2" id="chat-input-area">
+                    <input type="text" id="chat-input"
+                           class="form-control xai-chat-input"
+                           placeholder="Ask a question about these results…"
+                           aria-label="Chat message input"
+                           maxlength="500" />
+                    <button class="btn btn-xai-primary px-4" id="chat-send-btn"
+                            aria-label="Send message">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+                <p class="text-muted small mt-2 mb-0" id="chat-disclaimer">
+                    <i class="bi bi-shield-exclamation me-1"></i>
+                    Responses are AI-generated for research purposes only and are not medical advice.
+                </p>
+            </div>
+        </div>
+
+    </div><!-- end right column -->
+
+</div><!-- end row -->
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js risk gauge -->
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+
+<script>
+    // ----------------------------------------------------------------
+    // Initialise the risk gauge
+    // ----------------------------------------------------------------
+    const fusedScore = {{ prediction.fused_score }};
+    initRiskGauge('risk-gauge', fusedScore);
+
+    // ----------------------------------------------------------------
+    // Chatbot — fetch-based messaging without page reload
+    // ----------------------------------------------------------------
+    const predictionId = {{ prediction.id }};
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput    = document.getElementById('chat-input');
+    const sendBtn      = document.getElementById('chat-send-btn');
+
+    function appendMessage(text, role) {
+        const div = document.createElement('div');
+        div.classList.add('xai-chat-msg', role === 'user' ? 'xai-chat-user' : 'xai-chat-bot');
+        div.textContent = text;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendTypingIndicator() {
+        const div = document.createElement('div');
+        div.classList.add('xai-chat-msg', 'xai-chat-bot', 'xai-chat-typing');
+        div.id = 'typing-indicator';
+        div.innerHTML = '<span></span><span></span><span></span>';
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return div;
+    }
+
+    async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Display user message immediately
+        appendMessage(message, 'user');
+        chatInput.value = '';
+        sendBtn.disabled = true;
+
+        // Show typing indicator
+        const typing = appendTypingIndicator();
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message, prediction_id: predictionId }),
+            });
+
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            const data = await response.json();
+
+            typing.remove();
+            appendMessage(data.response, 'bot');
+
+        } catch (err) {
+            typing.remove();
+            appendMessage(`Error: ${err.message}. Please try again.`, 'bot');
+        } finally {
+            sendBtn.disabled = false;
+            chatInput.focus();
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+</script>
+{% endblock %}
