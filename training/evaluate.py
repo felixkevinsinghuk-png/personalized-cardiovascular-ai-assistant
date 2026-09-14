@@ -1,24 +1,13 @@
-"""
-training/evaluate.py
-Ablation study and evaluation script.
-
-Evaluates three configurations on the held-out test sets:
-    1. ResNet-50 only (DR grade → risk level via direct threshold)
-    2. EfficientNet-B4 only (CVD score → risk level via direct threshold)
-    3. Fused output (weighted combination of both models)
-
-For each configuration, computes:
-    - AUC-ROC
-    - F1-Score (weighted average)
-    - Sensitivity (Recall / True Positive Rate)
-    - Specificity (True Negative Rate)
-
-Results are printed as a formatted table for the dissertation.
-
-Run from the project root after training both models:
-    conda activate retinal_xai
-    python training/evaluate.py
-"""
+# Ablation study — evaluates three configurations on the held-out test sets:
+#   1. ResNet-50 alone  (grades 2–4 treated as CVD-risk positive)
+#   2. EfficientNet-B4 alone
+#   3. Fused output (weighted combination)
+#
+# Prints AUC-ROC, F1, Sensitivity, and Specificity for each.
+#
+# Run after training both models:
+#   conda activate retinal_xai
+#   python training/evaluate.py
 
 import os
 import sys
@@ -52,17 +41,7 @@ def get_device() -> torch.device:
 
 
 def compute_binary_metrics(y_true: list, y_prob: list, threshold: float = 0.5) -> dict:
-    """
-    Compute AUC-ROC, F1, Sensitivity, and Specificity for binary classification.
-
-    Args:
-        y_true:    Ground truth binary labels (0 or 1).
-        y_prob:    Predicted probabilities for class 1.
-        threshold: Decision threshold for binarising probabilities.
-
-    Returns:
-        Dictionary of metric names to float values.
-    """
+    """AUC-ROC, weighted F1, sensitivity and specificity for binary classification."""
     y_pred = [1 if p >= threshold else 0 for p in y_prob]
 
     auc = roc_auc_score(y_true, y_prob)
@@ -81,10 +60,7 @@ def compute_binary_metrics(y_true: list, y_prob: list, threshold: float = 0.5) -
 
 
 def evaluate_resnet_only(resnet, device) -> dict:
-    """
-    Evaluate ResNet-50 alone on the APTOS test split.
-    Binary conversion: DR grade >= 2 → CVD risk positive (high-risk proxy).
-    """
+    """Run ResNet-50 on the APTOS test split. Grades 2–4 count as CVD-risk positive."""
     csv_path   = os.path.join(Config.APTOS_DATA_DIR, "train.csv")
     images_dir = os.path.join(Config.APTOS_DATA_DIR, "train_images")
 
@@ -153,15 +129,8 @@ def evaluate_efficientnet_only(efficientnet, device) -> dict:
 
 def evaluate_fused(resnet, efficientnet, device) -> dict:
     """
-    Evaluate the fused model on a combined test evaluation.
-
-    Uses ODIR-5K test images (which have ground truth CVD risk labels).
-    The fused score is computed by running each image through both models
-    and applying the weighted fusion formula.
-
-    Note: This requires both models to process the same images.
-    We approximate fusion evaluation using ODIR-5K test set only,
-    as it provides reliable binary CVD risk ground truth.
+    Run both models on the ODIR-5K test set and fuse their outputs.
+    Ground truth is the binary CVD label from ODIR-5K.
     """
     csv_path   = os.path.join(Config.ODIR_DATA_DIR, "full_df.csv")
     images_dir = os.path.join(Config.ODIR_DATA_DIR, "ODIR-5K_Training_Images")
@@ -186,16 +155,6 @@ def evaluate_fused(resnet, efficientnet, device) -> dict:
         for images, labels in loader:
             images = images.to(device)
 
-            # ResNet: get DR grade probabilities
-            resnet_logits = resnet(images)
-            resnet_probs = torch.softmax(resnet_logits.cpu(), dim=1).numpy()
-            dr_grades = resnet_probs.argmax(axis=1)
-
-            # EfficientNet: get CVD scores
-            effnet_logits = efficientnet(images)
-            cvd_scores = torch.sigmoid(effnet_logits.cpu()).squeeze(1).numpy()
-
-            # Fuse scores
             for dr_grade, cvd_score in zip(dr_grades, cvd_scores):
                 fused_score, _ = fuse_scores(int(dr_grade), float(cvd_score))
                 all_fused_scores.append(fused_score)

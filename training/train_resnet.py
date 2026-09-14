@@ -1,28 +1,12 @@
-"""
-training/train_resnet.py
-Training script for ResNet-50 on the APTOS 2019 DR grading dataset.
-
-Architecture:
-    - ResNet-50 with ImageNet pre-trained weights
-    - Layers 1 and 2 (early blocks) frozen — only layers 3, 4 and FC are trained
-    - Final FC replaced with Dropout(0.5) → Linear(2048, 5)
-
-Training config:
-    - Loss: CrossEntropyLoss
-    - Optimiser: AdamW (lr=1e-4, weight_decay=1e-4)
-    - Scheduler: ReduceLROnPlateau (monitors validation AUC-ROC)
-    - Device: MPS (Apple M3) with CPU fallback
-    - Batch size: 32
-    - Early stopping: patience=5 epochs on validation AUC-ROC
-
-Outputs:
-    - models/resnet50.pth: Best model weights saved when validation AUC-ROC improves
-    - Console: Per-epoch loss and AUC-ROC for both train and validation sets
-
-Run from the project root:
-    conda activate retinal_xai
-    python training/train_resnet.py
-"""
+# Training script for ResNet-50 on APTOS 2019 (5-class DR grading).
+#
+# Architecture: ResNet-50 with layers 1-2 frozen, final FC replaced by Dropout(0.5) → Linear(2048, 5)
+# Loss: CrossEntropyLoss with inverse-frequency class weights (grades 3 and 4 are rare)
+# Optimiser: AdamW lr=1e-4, ReduceLROnPlateau scheduler, early stopping patience=5
+#
+# Run from project root:
+#   conda activate retinal_xai
+#   python training/train_resnet.py
 
 import os
 import sys
@@ -39,15 +23,12 @@ from config import Config
 from training.dataset_aptos import APTOSDataset, get_aptos_transforms
 
 
-# ---------------------------------------------------------------------------
-# Hyperparameters
-# ---------------------------------------------------------------------------
 NUM_EPOCHS = 50
 BATCH_SIZE = Config.BATCH_SIZE
-LR = Config.LEARNING_RATE
-PATIENCE = Config.EARLY_STOPPING_PATIENCE
+LR         = Config.LEARNING_RATE
+PATIENCE   = Config.EARLY_STOPPING_PATIENCE
 NUM_CLASSES = Config.NUM_CLASSES_RESNET
-SEED = 42
+SEED       = 42
 
 
 def get_device() -> torch.device:

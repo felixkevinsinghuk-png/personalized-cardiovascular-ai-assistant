@@ -1,66 +1,29 @@
-"""
-ml/predict.py
-Model inference functions — run preprocessed tensors through each CNN model.
-
-Functions:
-    run_resnet(tensor, model, device)       → (dr_grade, dr_probability)
-    run_efficientnet(tensor, model, device) → cvd_score
-"""
+# Inference wrappers for ResNet-50 and EfficientNet-B4.
+# Both functions expect a preprocessed [1, 3, 224, 224] tensor from preprocess.py.
 
 import torch
 import torch.nn.functional as F
 
 
-def run_resnet(
-    tensor: torch.Tensor,
-    model: torch.nn.Module,
-    device: torch.device,
-) -> tuple[int, float]:
+def run_resnet(tensor: torch.Tensor, model: torch.nn.Module, device: torch.device) -> tuple[int, float]:
     """
-    Run inference through the ResNet-50 DR grading model.
-
-    Args:
-        tensor: Preprocessed image tensor of shape [1, 3, 224, 224].
-        model:  Loaded ResNet-50 model in eval mode.
-        device: The compute device (mps / cuda / cpu).
-
-    Returns:
-        dr_grade        (int)   Predicted DR grade index, 0–4.
-        dr_probability  (float) Softmax probability of the predicted grade.
+    Run the DR grading model and return the predicted grade (0–4) and its softmax probability.
     """
     tensor = tensor.to(device)
-
     with torch.no_grad():
-        logits = model(tensor)                          # Shape: [1, 5]
-        probabilities = F.softmax(logits, dim=1)        # Shape: [1, 5]
+        probs = F.softmax(model(tensor), dim=1)
 
-    dr_grade = int(probabilities.argmax(dim=1).item())
-    dr_probability = float(probabilities[0, dr_grade].item())
-
+    dr_grade       = int(probs.argmax(dim=1).item())
+    dr_probability = float(probs[0, dr_grade].item())
     return dr_grade, dr_probability
 
 
-def run_efficientnet(
-    tensor: torch.Tensor,
-    model: torch.nn.Module,
-    device: torch.device,
-) -> float:
+def run_efficientnet(tensor: torch.Tensor, model: torch.nn.Module, device: torch.device) -> float:
     """
-    Run inference through the EfficientNet-B4 CVD risk model.
-
-    Args:
-        tensor: Preprocessed image tensor of shape [1, 3, 224, 224].
-        model:  Loaded EfficientNet-B4 model in eval mode.
-        device: The compute device (mps / cuda / cpu).
-
-    Returns:
-        cvd_score (float) CVD risk probability in range [0.0, 1.0].
-                          Higher values indicate greater cardiovascular risk.
+    Run the CVD risk model and return a probability in [0.0, 1.0].
+    Higher means more cardiovascular risk.
     """
     tensor = tensor.to(device)
-
     with torch.no_grad():
-        logits = model(tensor)                          # Shape: [1, 1]
-        cvd_score = float(torch.sigmoid(logits).item())
-
+        cvd_score = float(torch.sigmoid(model(tensor)).item())
     return cvd_score

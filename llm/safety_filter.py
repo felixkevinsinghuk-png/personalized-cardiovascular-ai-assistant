@@ -1,27 +1,13 @@
-"""
-llm/safety_filter.py
-Scans LLM responses for blocked clinical advice phrases and appends the
-mandatory research disclaimer to every response.
-
-This module implements two safety mechanisms:
-
-1. PHRASE BLOCKING: If the LLM response contains any of the blocked phrases,
-   the entire response is replaced with a safe fallback message. This prevents
-   the tool from being mistaken for a clinical diagnostic system.
-
-2. DISCLAIMER APPENDING: The mandatory research disclaimer is appended to every
-   response — including the safe fallback — regardless of whether the phrase
-   filter was triggered.
-
-The blocked phrase list is intentionally broad to err on the side of safety.
-"""
+# Two safety mechanisms applied to every LLM response:
+#
+# 1. Phrase blocking — if the response contains any of the blocked clinical phrases,
+#    it's replaced entirely with a safe fallback message.
+# 2. Disclaimer — the mandatory research disclaimer is always appended, even to the fallback.
 
 from llm.prompt_builder import MANDATORY_DISCLAIMER
 
 
-# ---------------------------------------------------------------------------
-# Blocked clinical advice phrases (case-insensitive matching)
-# ---------------------------------------------------------------------------
+# Phrases that suggest the model has strayed into actual clinical advice
 BLOCKED_PHRASES = [
     "you are diagnosed",
     "you should take",
@@ -39,7 +25,6 @@ BLOCKED_PHRASES = [
     "stop medication",
 ]
 
-# Safe fallback message shown when a response is blocked
 SAFE_FALLBACK = (
     "The AI system detected that the generated response may contain content "
     "that could be misinterpreted as clinical advice. For safety reasons, this "
@@ -53,31 +38,15 @@ SAFE_FALLBACK = (
 
 def apply_safety_filter(raw_response: str) -> tuple[str, bool]:
     """
-    Apply the safety filter to an LLM-generated response.
-
-    Steps:
-    1. Check for any blocked clinical advice phrases (case-insensitive)
-    2. If found, replace the response with SAFE_FALLBACK and set was_filtered=True
-    3. Append MANDATORY_DISCLAIMER to whichever response text results from step 1/2
-
-    Args:
-        raw_response: The raw text string returned by the LLM.
-
-    Returns:
-        safe_response (str):  The filtered response with disclaimer appended.
-        was_filtered  (bool): True if the phrase filter was triggered.
+    Check the LLM response for blocked phrases and ensure the disclaimer is present.
+    Returns (filtered_response, was_filtered).
     """
-    response_lower = raw_response.lower()
+    triggered = any(phrase in raw_response.lower() for phrase in BLOCKED_PHRASES)
+    response_text = SAFE_FALLBACK if triggered else raw_response.strip()
 
-    # Check for any blocked phrase
-    triggered = any(phrase in response_lower for phrase in BLOCKED_PHRASES)
+    # The prompt instructs BioMistral to end with the disclaimer, so it usually does.
+    # Only append it if it's genuinely missing — otherwise we get it twice.
+    if "RESEARCH DISCLAIMER" not in response_text:
+        response_text = response_text + MANDATORY_DISCLAIMER
 
-    if triggered:
-        response_text = SAFE_FALLBACK
-    else:
-        response_text = raw_response.strip()
-
-    # Always append the mandatory disclaimer
-    safe_response = response_text + MANDATORY_DISCLAIMER
-
-    return safe_response, triggered
+    return response_text, triggered

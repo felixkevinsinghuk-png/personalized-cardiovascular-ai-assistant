@@ -1,3 +1,9 @@
+# Quick model evaluation script — prints AUC, F1, Sensitivity and Specificity
+# for both ResNet-50 (DR) and EfficientNet-B4 (CVD) on their respective test splits.
+#
+#   conda activate retinal_xai
+#   python evaluate_models.py
+
 import os
 import sys
 import torch
@@ -5,7 +11,6 @@ import numpy as np
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import f1_score, recall_score, confusion_matrix, roc_auc_score
 
-# Allow imports from project root
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from config import Config
 from training.dataset_aptos import APTOSDataset, get_aptos_transforms
@@ -75,33 +80,22 @@ def evaluate_model(model, loader, device, is_binary=False):
 
 def print_metrics(name, labels, preds, probs, is_binary):
     print(f"\n--- {name} ---")
-    
-    # 1. AUC
+
     try:
-        if is_binary:
-            auc = roc_auc_score(labels, probs)
-        else:
-            auc = roc_auc_score(labels, probs, multi_class="ovr", average="macro")
+        auc = roc_auc_score(labels, probs) if is_binary else roc_auc_score(labels, probs, multi_class="ovr", average="macro")
         print(f"AUC-ROC: {auc:.4f}")
     except Exception as e:
         print(f"AUC Error: {e}")
-        
-    # 2. F1 Score
-    f1 = f1_score(labels, preds, average="macro")
-    print(f"F1-Score (Macro): {f1:.4f}")
-    
-    # 3. Sensitivity (Recall)
-    recall = recall_score(labels, preds, average="macro")
-    print(f"Sensitivity (Recall): {recall:.4f}")
-    
-    # 4. Specificity
-    # Specificity = TN / (TN + FP). For multi-class, we approximate using confusion matrix
+
+    print(f"F1-Score (Macro): {f1_score(labels, preds, average='macro'):.4f}")
+    print(f"Sensitivity (Recall): {recall_score(labels, preds, average='macro'):.4f}")
+
     cm = confusion_matrix(labels, preds)
     if is_binary:
         tn, fp, fn, tp = cm.ravel()
         specificity = tn / (tn + fp)
     else:
-        # Macro specificity
+        # Macro specificity via one-vs-rest from the confusion matrix
         specificities = []
         for i in range(len(cm)):
             tp = cm[i, i]
@@ -110,7 +104,7 @@ def print_metrics(name, labels, preds, probs, is_binary):
             tn = np.sum(cm) - (tp + fp + fn)
             specificities.append(tn / (tn + fp) if (tn + fp) > 0 else 0)
         specificity = np.mean(specificities)
-        
+
     print(f"Specificity: {specificity:.4f}")
 
 def main():

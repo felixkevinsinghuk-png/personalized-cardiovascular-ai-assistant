@@ -1,14 +1,14 @@
-"""
-llm/clinical_context_extractor.py
-Sends free-text clinical history to Mistral-7B and extracts a single CCS float.
-"""
+# Sends the patient's free-text clinical history to BioMistral and extracts a single
+# float (0.0–1.0) representing additional cardiovascular risk from their history.
+# This score is then used as a third input to the fusion formula alongside DR and CVD scores.
 
 import logging
-from config import Config
 from llm.biomistral import query_biomistral
 
 logger = logging.getLogger(__name__)
 
+# The prompt instructs the model to return only a number — no words, no explanation.
+# Scoring rules are explicit to reduce hallucination and keep outputs consistent.
 SYSTEM_PROMPT = """You are a clinical risk scoring assistant.
 Read the patient description below and return ONLY a single decimal number between 0.0 and 1.0 representing their cardiovascular risk based on the clinical history mentioned.
 Do not return any words, explanation, or punctuation.
@@ -32,29 +32,24 @@ User text:
 
 Return only the number."""
 
+
 def extract_clinical_context_score(clinical_history_text: str) -> float:
     """
-    Query Mistral to extract a clinical context score from the user's history.
+    Query BioMistral with the patient's typed history and parse out a risk score float.
+    Returns 0.10 (low baseline) if the input is empty or the model fails to parse.
     """
     if not clinical_history_text or not clinical_history_text.strip():
         return 0.10
-        
+
     prompt = SYSTEM_PROMPT.format(user_text=clinical_history_text.strip())
-    
+
     try:
-        # Call existing Ollama function
-        raw_response = query_biomistral(prompt)
-        
-        # Clean up the response (strip whitespace, newlines, etc.)
-        cleaned = raw_response.strip().replace('"', '').replace("'", "")
-        
-        score = float(cleaned)
-        # Cap between 0.0 and 1.0
+        raw = query_biomistral(prompt)
+        score = float(raw.strip().replace('"', '').replace("'", ""))
         return max(0.0, min(1.0, score))
-        
     except ValueError:
-        logger.error(f"Failed to parse float from Mistral response: {raw_response}")
+        logger.error(f"Could not parse float from BioMistral response: {raw!r}")
         return 0.10
     except Exception as e:
-        logger.error(f"Error in extract_clinical_context_score: {e}")
+        logger.error(f"extract_clinical_context_score failed: {e}")
         return 0.10

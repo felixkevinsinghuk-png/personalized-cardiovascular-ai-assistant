@@ -1,17 +1,36 @@
+# macOS
 .DS_Store
+
+# IDEs
 .idea/
+.vscode/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+
+# Runtime logs (cleared on each run)
 logs/
+
+# Large data / binary directories (not tracked in git)
 mysql_data/
 ollama_models/
 models/
 data/
+bin/
+
+# Generated EDA output images (reproducible — run eda scripts to regenerate)
+eda/output/
+
+# Markdown files — keep only project docs
 *.md
 !Documentation.md
 !Technical_Decisions_and_Limitations.md
-!AI_Context_Export.md
 !plan.md
 !training_results.md
 !update plan.md
 !README.md
+
+static/heatmaps/
+static/uploads/

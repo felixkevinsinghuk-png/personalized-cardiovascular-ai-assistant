@@ -1,16 +1,12 @@
-"""
-llm/prompt_builder.py
-Constructs the structured prompt sent to the LLM (BioMistral or MedGemma).
-
-The prompt is designed to:
-- Ground the LLM with specific numeric outputs to reduce hallucination
-- Constrain the response to a research/educational context
-- Request a structured explanation format
-- Remind the model to include the mandatory research disclaimer
-
-The safety_filter module will additionally scan the LLM response and
-append the disclaimer even if the LLM omits it.
-"""
+# Builds the prompts sent to BioMistral for the initial report and the chatbot.
+#
+# The prompts are structured to:
+#   - Ground the LLM with actual numeric scores to reduce hallucination
+#   - Constrain responses to a research/educational context
+#   - Ensure the mandatory disclaimer is always included
+#
+# MANDATORY_DISCLAIMER is defined here (not in safety_filter.py) so it can be
+# imported without creating a circular dependency.
 
 
 # Mandatory disclaimer text appended to every LLM response by the safety filter.
@@ -34,22 +30,7 @@ def build_prompt(
     ccs: float = None,
     retinal_caption: str = None,
 ) -> str:
-    """
-    Build the structured prompt for the primary LLM.
-
-    Args:
-        dr_grade:    Predicted DR grade index (0–4).
-        dr_label:    Human-readable DR grade label, e.g. "Moderate DR".
-        cvd_score:   EfficientNet-B4 CVD risk score (0.0–1.0).
-        fused_score: Weighted fusion of DR and CVD scores (0.0–1.0).
-        risk_level:  Overall risk classification: "Low", "Borderline", "Moderate", or "High".
-        clinical_history: Raw text typed by user describing medical history.
-        ccs:         Clinical Context Score extracted by LLM (0.0-1.0).
-        retinal_caption:  A descriptive text string representing visible retinal features.
-
-    Returns:
-        prompt (str): Fully formatted prompt string ready to send to the LLM.
-    """
+    """Build the structured report prompt from the pipeline outputs."""
     
     # Format the history section
     if clinical_history and ccs is not None:
@@ -108,22 +89,7 @@ def build_chat_prompt(
     fused_score: float,
     risk_level: str,
 ) -> str:
-    """
-    Build a contextualised chatbot prompt that includes the prediction context.
-
-    Used for follow-up questions on the results page chatbot.
-
-    Args:
-        user_message: The user's question string.
-        dr_grade:     DR grade from the original prediction.
-        dr_label:     DR label string.
-        cvd_score:    CVD risk score from the original prediction.
-        fused_score:  Fused risk score from the original prediction.
-        risk_level:   Overall risk level string.
-
-    Returns:
-        prompt (str): Contextualised prompt for the chatbot LLM call.
-    """
+    """Build a contextualised chatbot prompt that includes the original prediction results."""
     prompt = f"""You are a medical AI research assistant helping explain retinal analysis results.
 You have access to the following analysis results from this session:
 

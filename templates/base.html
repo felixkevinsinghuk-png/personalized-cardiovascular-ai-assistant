@@ -62,8 +62,13 @@
         {% if messages %}
             <div class="container mt-3" id="flash-container">
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ message }}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert" id="flash-{{ loop.index }}">
+                        {% if category == 'danger' %}
+                            <i class="bi bi-camera-video-off-fill me-2"></i>
+                        {% else %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% endif %}
+                        {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}

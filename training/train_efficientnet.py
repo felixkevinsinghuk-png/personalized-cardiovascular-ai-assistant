@@ -1,28 +1,12 @@
-"""
-training/train_efficientnet.py
-Training script for EfficientNet-B4 on the ODIR-5K CVD risk dataset.
-
-Architecture:
-    - EfficientNet-B4 with ImageNet pre-trained weights
-    - Early MBConv blocks frozen — only final blocks and classifier are trained
-    - Classifier replaced with Dropout(0.5) → Linear(1792, 1)
-
-Training config:
-    - Loss: BCEWithLogitsLoss (binary cross-entropy with built-in sigmoid)
-    - Optimiser: AdamW (lr=1e-4, weight_decay=1e-4)
-    - Scheduler: ReduceLROnPlateau (monitors validation AUC-ROC)
-    - Device: MPS (Apple M3) with CPU fallback
-    - Batch size: 32
-    - Early stopping: patience=5 epochs on validation AUC-ROC
-
-Outputs:
-    - models/efficientnet.pth: Best model weights
-    - Console: Per-epoch loss and AUC-ROC for train and validation sets
-
-Run from the project root:
-    conda activate retinal_xai
-    python training/train_efficientnet.py
-"""
+# Training script for EfficientNet-B4 on ODIR-5K (binary CVD risk).
+#
+# Architecture: EfficientNet-B4 with blocks 0-5 frozen, classifier replaced by Dropout(0.5) → Linear(1792, 1)
+# Loss: BCEWithLogitsLoss (binary cross-entropy with built-in sigmoid)
+# Optimiser: AdamW lr=1e-4, ReduceLROnPlateau on val AUC-ROC, early stopping patience=5
+#
+# Run from project root:
+#   conda activate retinal_xai
+#   python training/train_efficientnet.py
 
 import os
 import sys
@@ -38,14 +22,11 @@ from config import Config
 from training.dataset_odir import ODIRDataset, get_odir_transforms
 
 
-# ---------------------------------------------------------------------------
-# Hyperparameters
-# ---------------------------------------------------------------------------
 NUM_EPOCHS = 50
 BATCH_SIZE = Config.BATCH_SIZE
-LR = Config.LEARNING_RATE
-PATIENCE = Config.EARLY_STOPPING_PATIENCE
-SEED = 42
+LR         = Config.LEARNING_RATE
+PATIENCE   = Config.EARLY_STOPPING_PATIENCE
+SEED       = 42
 
 
 def get_device() -> torch.device:

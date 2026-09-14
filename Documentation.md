@@ -287,6 +287,9 @@ Previously, any score below 0.33 was declared "Low Risk." Now it must be below 0
 5.  **Environment Conflicts:**
     *   *Issue:* macOS AirPlay Receiver occupied Flask's default Port 5000.
     *   *Solution:* Migrated to Port 5001. Used `ngrok` for secure external academic demonstrations to bypass limited-resource university cPanel restrictions.
+6.  **Non-Retinal Image Hallucinations (Pipeline Hardening):**
+    *   *Issue:* The system previously accepted arbitrary non-retinal images (e.g., leaves, outdoor scenes, X-rays) and pushed them through the inference pipeline. The CNNs assigned arbitrary risk scores (e.g., "Moderate Risk" for a leaf), and the LSTM hallucinated severe retinal pathologies (e.g., "proliferative changes") for completely unrelated images.
+    *   *Solution:* Implemented a strict pre-inference validation gate (`ml/retinal_validator.py`) using a heuristic scoring system based on colour dominance, HSV hue, border/centre brightness, and saturation. Any image failing the confidence threshold (0.45) or triggering hard-fails (e.g., green-dominant) is immediately rejected. A `ValidationFailure` table was added to separately audit rejected uploads without polluting the primary prediction history, and the caption generator was hard-gated (`validated=True`) to prevent bypassing validation.
 
 ---
 
@@ -652,3 +655,1150 @@ Feeding these into the system would result in catastrophic failure, as the visua
 3.  **ModuleNotFoundError (Pathing):**
     *   *Issue:* Running training scripts from the home directory caused import failures for the `training` module.
     *   *Solution:* Injected `sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` into all ML scripts, making them universally executable regardless of the working directory.
+
+---
+
+## 15. Viva Q&A — Critical Examination Reference
+
+> **Scope:** Every answer below is derived strictly from the content of this Documentation.md file. Where the documentation is silent on a question, this is explicitly flagged as a ⚠️ **GAP** so the gap can be prepared independently before the viva. No claims are made beyond what is recorded here.
+
+---
+
+### Section 1 — Uniqueness
+
+---
+
+#### V1.1 — What is the single technical contribution not already available off-the-shelf?
+
+The document does not make an explicit claim of a novel algorithmic contribution. §1 describes the system as a "research prototype web application." The contributions documented are:
+
+- ResNet-50 DR classification + EfficientNet-B4 CVD classification + Grad-CAM + Mistral-7B LLM, integrated into a single Flask web application.
+- Clinical Context Score (CCS) extracted by Mistral-7B from free-text history as a third fusion input (§A.1, Q6).
+- Clinical Safety Multiplier (1.25×) + lowered Low Risk threshold (0.33 → 0.25) as a post-hoc safety mechanism (§11, §14, A.1).
+
+The fusion formula, CCS integration, and Safety Multiplier are described as novel **at the system architecture level** (§14, A.1), not as novel algorithms.
+
+> ⚠️ **GAP:** The document does not cite any published paper to establish uniqueness of this combination. The honest viva position is: *"The contribution is an integrated, end-to-end XAI pipeline with a CCS-fused clinical safety mechanism. It is an engineering and integration contribution, not a new algorithm."*
+
+---
+
+#### V1.2 — Has the CCS + 1.25× Multiplier + 0.33→0.25 threshold combination appeared in published literature?
+
+§14 and A.1 justify the combination as aligning with *"the principle of clinical conservatism in AI-assisted screening."* No published paper is cited for this specific triple combination.
+
+> ⚠️ **GAP:** No literature citation exists in the document for this mechanism. Honest answer: *"We are not aware of a published paper using this exact combination. The individual elements (post-hoc threshold adjustment, clinical sensitivity boosting) appear in clinical AI literature, but our specific triple mechanism is, to our knowledge, novel at the implementation level."*
+
+---
+
+#### V1.3 — What new information does the LSTM caption add over displaying "DR Grade: 3" directly?
+
+Q12 (§13) explicitly acknowledges: *"The generated captions are stylistically uniform because they are derived from five fixed templates."* §14 confirms the Safety Override replaces incorrect captions with *"the guaranteed-correct template for that DR grade."* The caption for Grade 3 is the deterministic mapping: *"Numerous haemorrhages and hard exudates are present throughout the retina."*
+
+**Honest answer:** The document effectively concedes that the LSTM caption adds no new clinical information beyond restating the DR grade in natural language. The value is presentational (human-readable text), not substantively new insight. This is acknowledged as a limitation in Q10 and Q12.
+
+---
+
+#### V1.4 — What does the LSTM contribute beyond text templating, given the Safety Override defers to ResNet-50?
+
+§14 states: *"If the caption understates severity (implied grade < DR grade), it is immediately overridden with the guaranteed-correct template for that DR grade."* The Safety Override guarantees zero false-negative captions **by construction**.
+
+**Honest answer:** The LSTM's genuine learned behaviour is only observable when the Safety Override does not fire — i.e., when it correctly generates captions without interception. For Grade 3 and 4 in v1, it was being overridden. The document does not claim independent clinical reasoning from the LSTM; its role is natural language text generation from visual features, with a safety net.
+
+---
+
+#### V1.5 — Which model is actually deployed: BioMistral-7B or Mistral-7B?
+
+The document contains a direct internal contradiction:
+
+| Section | Model Named |
+|---|---|
+| §1 Project Overview | **Mistral-7B** via Ollama |
+| §2 Technology Stack table | **Mistral-7B** via Ollama |
+| §3 Pipeline diagram Step 6 | **Mistral-7B** |
+| Change 2 (§7) | **Mistral-7B** via Ollama |
+| Change 3 (§7) | **Mistral-7B** (4.1 GB) |
+| §12.2 Issues Log Item 3 | **Mistral-7B** (4.1 GB) |
+| Q6 (§13) | **Mistral-7B** extracts the CCS |
+| Q9 (§13) | **BioMistral-7B** justified |
+| A.3 (§Appendix) | **BioMistral-7B** described as solution |
+
+**Honest answer:** The working prototype, as documented in §1, §2, §3, and the Changes log, runs **plain Mistral-7B**. Q9 and A.3 describe BioMistral-7B as the design justification and intent, but this conflicts with every operational section of the document. The deployed system uses Mistral-7B; the BioMistral justification is aspirational.
+
+---
+
+### Section 2 — Usefulness
+
+---
+
+#### V2.1 — Who is the intended end-user?
+
+§1 states this is a *"research prototype web application"* with the disclaimer: *"This is an academic prototype only. It does NOT provide medical diagnoses."* The output (DR grade, CVD score, Fused Risk Level, Grad-CAM heatmap, LLM narrative, chatbot, history) is described for a research/demonstration context.
+
+> ⚠️ **GAP:** The document does not explicitly name a target user group (patient, GP, optometrist, researcher). Honest answer: *"The intended user is a researcher or academic demonstrator. The UI and output format are not designed for any specific clinical workflow."*
+
+---
+
+#### V2.2 — What real decision does the Fused Risk Level actually support?
+
+§11 states: *"borderline cases (e.g., CVD score of 0.20) would now be pushed from Low to Moderate, prompting the patient to seek clinical review."* §14 (Q3) states the mechanism is designed to *"err on the side of caution"* to avoid missed diagnoses.
+
+**Honest answer:** The Fused Risk Level is intended to trigger referral for further clinical review in borderline cases. The document does not support claims of direct clinical decision-making or diagnosis.
+
+---
+
+#### V2.3 — On what basis is the system "useful" for CVD when the one real-world test was a false negative?
+
+§11 explicitly documents the test case result: DR Grade 0, CVD Score 0.0092, Fused Score 0.0055, Risk Level **Low** — a false negative. The document explains this occurred because the structural cardiac defect (valvular regurgitation) is not visible on the retina, and the image was taken two years before the diagnosis.
+
+**Honest answer:** The document does not claim the system was useful in the real-world test case. The academic claim is that the system demonstrates the pipeline architecture and that the CCS mechanism addresses borderline false negatives — not cases where the retina genuinely shows no markers, as in this case.
+
+---
+
+#### V2.4 — What evidence beyond test-set AUC/F1 supports the fused score reflecting real CVD risk?
+
+Q10 (§13) explicitly lists: *"No prospective clinical validation"* as a known limitation.
+
+**Honest answer:** None. The AUC and F1 figures are computed on held-out portions of the training datasets (APTOS 2019, ODIR-5K). No prospective or clinical validation exists. This is explicitly acknowledged as a limitation.
+
+---
+
+#### V2.5 — How is a Sensitivity of 0.6362 (DR model) acceptable for a screening tool?
+
+Table 6 (§6) reports ResNet-50 Sensitivity = 0.6362. Change 6 (§7) states Weighted CrossEntropyLoss moved F1 from 0.6465 to 0.6483, described as "negligible." Conclusion: *"Future work needs Focal Loss or SMOTE/GAN-based data augmentation."* §12.2 (Item 2) confirms this is an unresolved limitation.
+
+**Honest answer:** The document does not justify this as clinically acceptable. It explicitly frames it as an unresolved weakness. The system is not claimed to be clinically deployable at this performance level — it is a research prototype where this metric represents future work.
+
+---
+
+### Section 3 — USP
+
+---
+
+#### V3.1 — What quantitative evidence shows fusion improves over the CVD model alone?
+
+Table 6 (§6) shows:
+
+| Model | AUC | F1 | Sensitivity | Specificity |
+|---|---|---|---|---|
+| EfficientNet-B4 (CVD alone) | 0.9675 | 0.9172 | 0.9245 | 0.9945 |
+| Overall System | 0.9504 | 0.7819 | 0.7804 | 0.9733 |
+
+The "Overall System" figures are **lower** than the CVD model alone on AUC, F1, and Sensitivity.
+
+> ⚠️ **GAP:** The document does not explain why fusion is quantitatively better. Honest answer: *"The reported aggregate metrics do not demonstrate that fusion improves on the CVD model alone. The justification for fusion is clinical (adding DR as a correlated proxy biomarker) rather than purely metric-based. This is a legitimate criticism."*
+
+---
+
+#### V3.2 — Is your USP the working single-agent system or the theoretical multi-agent architecture?
+
+Q11 (§13) and A.3 (§Appendix) document the multi-agent design as "considered and evaluated" but **not implemented** — explicitly classified as Future Work.
+
+**Honest answer:** The USP is the **working single-agent system** with CCS integration and the clinical safety mechanism. The multi-agent architecture is documented future work only and does not exist in the prototype.
+
+---
+
+#### V3.3 — What data proves 0.6 is better than 0.5 or 0.7 for the CVD weight?
+
+§8 provides this justification: the EfficientNet-B4 model is *"the primary, direct predictor of systemic cardiovascular risk"* outputting *"a highly precise, continuous probability."* The DR weight is lower because DR output is *"an ordinal integer class… yielding a less granular step-wise score."* No ablation study is reported.
+
+**Honest answer:** *"The weights were chosen based on clinical reasoning about the relative precision and relevance of each output. No grid search or ablation experiment was conducted. This is an acknowledged limitation — the weights are principled but not empirically optimised."*
+
+---
+
+#### V3.4 — Is fusion simply a weighted average of two unrelated classifiers?
+
+Both models were trained on different datasets (APTOS 2019 vs ODIR-5K) with no shared patients and no joint fine-tuning. §8 describes the fusion as "Weighted Late Fusion / Score-Level Fusion" from ensemble learning literature.
+
+**Honest answer:** *"Yes — technically the fusion is a weighted linear combination of two independently trained classifiers' output scores. There is no shared representation, joint training, or multimodal feature alignment. A critical examiner is correct that this is not a deeply integrated multimodal system — it is a late-fusion ensemble, which we acknowledge."*
+
+---
+
+### Section 4 — Methodology and Evidence
+
+---
+
+#### V4.1 — How is the "Overall System" AUC 0.9504 and F1 0.7819 computed?
+
+§6 states: *"Calculated by `evaluate_models.py` on the unseen 15% Test Set using sklearn.metrics."* The document does not specify the averaging method.
+
+**Verification:** (0.9332 + 0.9675) / 2 = **0.9504 ✓** and (0.6465 + 0.9172) / 2 = **0.7819 ✓**
+
+**Honest answer:** The Overall System figures are the **arithmetic mean** of the two individual model metrics. They are not measured against a ground-truth fused-risk label — they are an average of two models predicting different targets (5-class DR vs binary CVD).
+
+---
+
+#### V4.2 — Is the SMOTE/GAN conclusion based on evidence or assumption?
+
+Change 6 (§7): Weighted CrossEntropyLoss was attempted, F1 moved 0.6465 → 0.6483. Conclusion: *"Future work needs Focal Loss or SMOTE/GAN-based data augmentation."* No SMOTE or GAN experiment was run.
+
+**Honest answer:** *"The conclusion is based on extrapolation from the failure of weighted loss, not on a direct experiment. SMOTE and GAN augmentation were not implemented. This is future-work conjecture supported by general literature, not our own experimental evidence."*
+
+---
+
+#### V4.3 — Could patient overlap between train/test inflate metrics?
+
+§4 states 70/15/15 splits for both models. The document does not mention patient-level splitting.
+
+> ⚠️ **GAP:** ODIR-5K is structured per-patient with left and right eye images. An image-level split could place both eyes of the same patient in train and test simultaneously. Honest answer: *"We performed image-level splitting. Patient-level stratification was not implemented. If ODIR-5K patient pairs appear across train and test, this could artificially inflate test AUC and Specificity. This is an acknowledged methodological limitation."*
+
+---
+
+#### V4.4 — What validation exists that the LLM-derived CCS is reliable and reproducible?
+
+Q6 (§13) states: *"The CCS is extracted by Mistral-7B from the free text."* A.3 notes initial LLM tests showed *"a tendency to hallucinate incorrect anatomical terms."* No consistency test, reproducibility experiment, or held-out validation is reported.
+
+**Honest answer:** *"No validation of CCS reliability or reproducibility was conducted. The LLM is non-deterministic — the same input text may produce different CCS values across runs. This is a significant unaddressed gap."*
+
+---
+
+#### V4.5 — What justifies 1.25× and 0.25 threshold specifically?
+
+§11 states the effect: borderline cases (e.g., CVD score of 0.20) would be pushed from Low to Moderate. The test case score (0.0055 × 1.25 = 0.0069) still remains Low after the fix. No tuning dataset or ROC-based analysis is reported.
+
+**Honest answer:** *"The 1.25× multiplier and 0.25 threshold were chosen by engineering judgment to shift borderline cases into the next risk tier. They were not derived from an ROC analysis or validated against a labelled borderline dataset. This is a limitation."*
+
+---
+
+#### V4.6 — Why does "improved" v2 LSTM have a higher validation loss (0.0247) than v1 (0.0177)?
+
+Q4 (§13) reports v1: converged to validation loss **0.0177** at Epoch 6. §14 Training Log reports v2 best: Epoch 8, Val Loss **0.0247**.
+
+§14 explains v2's improvements targeted **class confusion** (Grade 3/4 being captioned as Grade 2) by using WeightedRandomSampler — which forced the model to train on a harder, more balanced distribution with more difficult examples inherently raising loss.
+
+**Honest answer:** *"v2 has a higher final val loss because it trained on a harder, more balanced distribution. The 'improvement' refers to eliminating dangerous class confusion (Grade 3/4 being captioned as Grade 2), not achieving lower raw loss. The loss values are not directly comparable because the training data distribution changed between v1 and v2."*
+
+---
+
+#### V4.7 — Doesn't the Safety Override guarantee dual-layer defence success by construction?
+
+§14 states: *"the Safety Override catches and corrects it before it reaches BioMistral."* It is described as guaranteeing zero false-negative captions.
+
+**Honest answer:** *"Yes — the Safety Override guarantees zero false-negative captions by construction. The dual-layer defence's reported success is partially guaranteed by the fallback, not entirely by the LSTM's learned behaviour. The LSTM's genuine quality is only testable on cases where the Safety Override does not fire."*
+
+---
+
+#### V4.8 — No confidence intervals or cross-validation reported — how stable are the metrics?
+
+§6 reports single-run point estimates on 15% test sets: APTOS ~549 images, ODIR-5K ~1,869 images. No cross-validation, bootstrap confidence intervals, or significance tests are reported.
+
+**Honest answer:** *"No confidence intervals were reported. On test sets of this size — especially for the DR model where Grade 3/4 contribute few test samples due to class imbalance — point estimates will have meaningful variance. Error bars or cross-validation would be appropriate for future work."*
+
+---
+
+### Section 5 — Weaknesses and Limitations
+
+---
+
+#### V5.1 — Is calling it a "CVD risk score" misleading if it only detects microvascular retinal changes?
+
+A.1 explicitly states: *"the retina is a proxy indicator. While it reveals microvascular damage (e.g., from diabetes or hypertension), it cannot reveal macrovascular structural damage (e.g., coronary artery disease, valvular defects, previous stent surgeries)."* Q2 (§13) confirms: *"Retinal images are proxy biomarkers."*
+
+**Honest answer:** *"Yes — 'CVD risk score' over-reaches for what the model detects, which is hypertensive retinopathy and microvascular correlates of systemic disease. A more accurate name would be 'Microvascular Risk Proxy Score.' The naming is acknowledged as a limitation."*
+
+---
+
+#### V5.2 — Is the fix validated against any case where it should actually change the outcome?
+
+§11 explicitly states: *"With these changes, the test case score of 0.0055 × 1.25 = 0.0069 would still be Low."* This was the only test case used.
+
+**Honest answer:** *"No. The fix is validated only by re-running the single false-negative case and confirming it remains Low — because the retina genuinely showed no markers. The fix is designed to affect borderline cases, but no labelled borderline case was tested. The validation is incomplete by our own documentation."*
+
+---
+
+#### V5.3 — Is the LSTM's explainability essentially cosmetic?
+
+Q12 (§13) explicitly states: *"The generated captions are stylistically uniform because they are derived from five fixed templates."* Acknowledged as a limitation: *"A model trained on genuine clinician-written reports would produce more varied and nuanced descriptions."*
+
+**Honest answer:** *"Yes — the document acknowledges this. With five fixed templates, captions are deterministic restatements of the DR grade in natural language. The genuine XAI contribution comes from the Grad-CAM heatmap, which highlights actual retinal regions the model focused on."*
+
+---
+
+#### V5.4 — What is the actual end-to-end latency per prediction?
+
+- Change 3 (§7): Mistral-7B *"takes ~2 min to load from SSD."* Timeout set to **300s**.
+- Q11 (§13): *"Each BioMistral call takes 30–60 seconds on the M3 MacBook Air."*
+- A.3: Multi-agent rejected partly because single-prediction time would be *"2–4 minutes."*
+
+**Honest answer:** *"Cold-start (loading from SSD to RAM): up to 2 minutes. Individual LLM inference: 30–60 seconds. End-to-end cold-start prediction: potentially 2–3 minutes. After model is warm: ~30–60 seconds. This makes the system a batch/research tool, not a real-time clinical application."*
+
+---
+
+#### V5.5 — Has system Specificity been recalculated after the 1.25× multiplier and 0.25 threshold changes?
+
+Table 6 (§6) reports Overall Specificity = 0.9733. The fusion changes are applied post-hoc in `ml/fusion.py` (§12.1). No recalculated metrics after these changes are reported.
+
+**Honest answer:** *"No. Table 6's Specificity figure was measured before the 1.25× multiplier and lowered threshold were applied. The post-hoc adjustments increase Sensitivity and decrease Specificity, but the updated figures are not reported. Table 6 is stale relative to the deployed system."*
+
+---
+
+#### V5.6 — Is there any data protection consideration for MySQL storage and ngrok?
+
+§9 (Database Schema): stores prediction data, heatmaps, LLM reports, chat history. No authentication, encryption, or access control is mentioned. §12.2 (Item 5): *"Used ngrok for secure external academic demonstrations."*
+
+**Honest answer:** *"The current implementation has no documented authentication, encryption, or access control on the MySQL database. ngrok routes HTTP traffic through a third-party service. Both are explicitly out of scope for this research prototype but would be mandatory requirements in any clinical deployment."*
+
+---
+
+#### V5.7 — Is the safety-net philosophy applied inconsistently across the pipeline?
+
+§14 and A.2 document the LSTM Safety Override (keyword matching → template replacement). No equivalent override is described for the CVD score or fused output when they conflict with clinical history.
+
+**Honest answer:** *"Yes — the safety override philosophy is applied asymmetrically. The LSTM has a severity override; the fusion score does not have a rule-based correction when CVD and CCS conflict. This inconsistency is an architectural gap not explicitly discussed in the document."*
+
+---
+
+#### V5.8 — Is this a working clinical screening tool or a technical XAI pipeline demonstration?
+
+§1: *"research prototype web application"* with disclaimer: *"This is an academic prototype only. It does NOT provide medical diagnoses."* Q10 (§13): *"No prospective clinical validation"* is a known limitation. The real-world test case was a false negative.
+
+**The only defensible position from this documentation:**
+*"This is a technical demonstration of an XAI pipeline architecture. It demonstrates that a ResNet-50 DR classifier, EfficientNet-B4 CVD classifier, LSTM image captioner, Grad-CAM explainability module, and LLM report generator can be integrated into a functional web application with a clinical safety mechanism. It is NOT a validated clinical screening tool. The evidence standard required to claim clinical utility — prospective validation, regulatory approval, clinician evaluation — has not been met and is not claimed."*
+
+---
+
+### Section 6 — Second Round: Sharper Technical Questions
+
+---
+
+#### V6.1 — Why does EfficientNet-B4 have no Grad-CAM output if the title claims "Explainable AI"?
+
+§3 (Pipeline, Step 5): *"GRAD-CAM — Hooks into ResNet-50 layer4."* No mention of Grad-CAM on EfficientNet-B4. §2 lists Grad-CAM as a single explainability component.
+
+**Honest answer:** *"Grad-CAM was only implemented for ResNet-50, which means the CVD model operates as a black box in the current system. The 'Explainable AI' title applies only to the DR half of the pipeline. Extending Grad-CAM to EfficientNet-B4 is technically straightforward (hooking the final convolutional block) and is future work."*
+
+---
+
+#### V6.2 — What grounds the chatbot's answers in actual prediction data vs pure LLM generation?
+
+§1: Interactive chatbot answers *"follow-up questions about the analysis results."* Change 4 (§7): strict refusal instruction added in `llm/prompt_builder.py`. §3 (Step 6): *"Scores injected into prompt → Mistral-7B."*
+
+> ⚠️ **GAP:** The document does not describe retrieval-augmented generation (RAG) or verification against the stored `predictions` row for follow-up chatbot messages. Honest answer: *"The initial report prompt injects DR grade, CVD score, and fused risk level into the model's context. Follow-up questions operate within that conversation history — there is no RAG or database-verified factual lookup. The chatbot could generate plausible but incorrect clinical detail beyond what was in the initial prompt."*
+
+---
+
+#### V6.3 — How was the binary CVD label derived from ODIR-5K's multi-label annotations?
+
+§4 states: EfficientNet-B4 trained on ODIR-5K for *"Binary CVD risk classification."* Q13 (§13): model detects *"hypertensive retinopathy, arteriovenous nicking, vessel changes."*
+
+> ⚠️ **GAP:** The document does not describe how ODIR-5K's original eight-condition multi-label annotations (cataract, glaucoma, AMD, hypertension, myopia, diabetes, etc.) were collapsed into a binary CVD label. Honest answer: *"The label derivation methodology is not documented here. If hypertensive retinopathy labels were mapped to CVD=1, this conflates hypertension with cardiovascular disease more broadly — which is an acknowledged scope limitation. This must be clarified before viva."*
+
+---
+
+#### V6.4 — Was the "reverse blood flow in heart" diagnosis verified from a clinical source?
+
+§11 describes: *"Confirmed diagnosis: reverse blood flow in heart (detected 2 years after the image was taken)."*
+
+> ⚠️ **GAP:** The document does not state the source of this diagnosis (clinical record, formal report, or patient-reported). "Reverse blood flow in heart" is a lay description likely referring to valvular regurgitation. Honest answer: *"The source of the diagnosis is not a formal clinical record cited in this document. This is an illustrative anecdote, not a formally verified clinical test case, and the weight it carries in the limitations discussion should be qualified accordingly."*
+
+---
+
+#### V6.5 — On what clinical basis is 0.25 the right threshold cutoff?
+
+§11 states the original Low Risk threshold was 0.33, changed to 0.25 to make it *"significantly harder for the system to declare someone safe."* No ROC-based cutoff analysis, clinical guideline, or expert consultation is cited.
+
+**Honest answer:** *"The 0.25 threshold has no clinical guideline basis. It was chosen to push borderline cases into the Moderate tier and was not derived from a Youden Index, clinical expert consensus, or sensitivity/specificity trade-off analysis on a labelled dataset. It is an engineering judgment call, not a clinically validated cutoff."*
+
+---
+
+#### V6.6 — Did resizing EfficientNet-B4 input to 224×224 (instead of native 380×380) degrade performance?
+
+§3 (Pipeline, Step 1): *"PREPROCESS — Resize to 224×224."* EfficientNet-B4's standard input resolution is 380×380. Both models receive 224×224 for pipeline uniformity.
+
+> ⚠️ **GAP:** The document does not acknowledge or test this resolution mismatch. Honest answer: *"EfficientNet-B4 was designed for 380×380 input. All images were resized to 224×224 for pipeline uniformity. No ablation at 380×380 was run. The reported AUC of 0.9675 may not represent EfficientNet-B4's full capability at its native resolution. This is an acknowledged methodological limitation."*
+
+---
+
+#### V6.7 — What empirical comparison justified freezing Layer1 and Layer2 of ResNet-50?
+
+§4: *"Frozen Layers: Layer1 and Layer2."* No ablation or comparison against alternative freezing strategies is described.
+
+**Honest answer:** *"The choice was adopted as standard transfer learning practice — early layers capture generic ImageNet features (edges, textures) that transfer well to retinal images, while later layers are domain-specific. No ablation was run comparing this against alternative strategies. This is a common and defensible default but was not empirically optimised."*
+
+---
+
+#### V6.8 — Why was CrossEntropyLoss used for an ordinal DR target (0–4) rather than an ordinal loss?
+
+§4: ResNet-50 uses `CrossEntropyLoss` for 5-class DR grade. The document does not mention ordinal regression.
+
+**Honest answer:** *"Standard CrossEntropyLoss treats all misclassifications equally — confusing Grade 0 with Grade 4 is penalised identically to confusing Grade 3 with Grade 4. An ordinal loss (e.g., Earth Mover's Distance or Ordinal CrossEntropy) would penalise larger ordinal jumps more severely. Using standard CrossEntropyLoss likely contributed to the low DR Sensitivity (0.6362) and is an acknowledged future improvement."*
+
+---
+
+#### V6.9 — ResNet-50 Best Epoch is Epoch 3 of 8 with Train AUC 0.9845 vs Val AUC 0.9338. Is this early overfitting?
+
+§5: ResNet-50 Best Epoch 3 of 8. Train AUC 0.9845, Val AUC 0.9338. Train Loss 0.2430, Val Loss 0.5612.
+
+**Honest answer:** *"The gap between Train AUC (0.9845) and Val AUC (0.9338) at Epoch 3 is notable and consistent with early-stage overfitting — the model learns dataset-specific features faster than it generalises. Training continued to Epoch 8, but the best checkpoint was Epoch 3 (lowest val loss), so the best model was captured. The gap itself suggests stronger regularisation or more aggressive Dropout could benefit future training."*
+
+---
+
+#### V6.10 — EfficientNet-B4 Train Loss 0.0207 vs Val Loss 0.0666 (roughly 3×). Is this overfitting?
+
+§5: EfficientNet-B4 Train Loss 0.0207, Val Loss 0.0666. Train AUC 0.9961, Val AUC 0.9594. §4: only Dropout(0.3) applied as regularisation.
+
+**Honest answer:** *"The train/val loss ratio (~3×) and Train AUC vs Val AUC gap (0.9961 vs 0.9594) are indicative of overfitting. Only Dropout(0.3) was used as regularisation. Additional techniques such as stronger dropout, weight decay, data augmentation, or label smoothing were not reported. The model performs well but likely has capacity beyond what the dataset can fully utilise."*
+
+---
+
+#### V6.11 — Can you confirm there is no patient leakage in the ODIR-5K 70/15/15 split?
+
+§4 states 70/15/15 image-level split. No mention of patient-level stratification.
+
+**Honest answer:** *"We cannot confirm this. The split was performed at image level. ODIR-5K provides two images per patient (left and right eyes). Without patient-level stratification, both eyes of the same patient could appear across train and test sets simultaneously. This is an acknowledged methodological limitation that could artificially inflate test AUC and Specificity."*
+
+---
+
+#### V6.12 — What justifies the CCS weight of 0.25 rather than 0.35?
+
+§13 (Q6) and A.1: The 3-input formula uses `(0.30 × DR + 0.45 × CVD + 0.25 × CCS) × 1.25`. No grid search or validation curve is reported.
+
+**Honest answer:** *"The CCS weight of 0.25 was chosen to give the clinical history meaningful influence without allowing it to dominate the image-based outputs. No grid search or validation curve was run. The weights are principled but not empirically optimised — a legitimate criticism."*
+
+---
+
+#### V6.13 — Have you recalculated Specificity/Sensitivity after the post-hoc 1.25× multiplier?
+
+Table 6 reports Specificity 0.9733, Sensitivity 0.7804. §12.1 applies the multiplier post-fusion. No recalculated metrics are reported.
+
+**Honest answer:** *"No. Table 6's figures were computed before the 1.25× multiplier and threshold changes were applied. The deployed system's actual Specificity will be lower and Sensitivity higher than reported. Table 6 is therefore stale relative to the deployed system. This is an unresolved gap."*
+
+---
+
+#### V6.14 — How do you know the LLM's CCS extraction is accurate rather than confidently wrong?
+
+A.1 and Q6 describe Mistral-7B extracting a CCS from free text. A.3 notes initial LLM tests showed *"a tendency to hallucinate incorrect anatomical terms."* No validation is reported.
+
+**Honest answer:** *"We do not know. No validation set of clinical histories with known correct CCS values was created. The LLM is non-deterministic — the same input may produce different CCS values across runs. This is a significant unaddressed gap. The CCS mechanism is conceptually sound but empirically unvalidated."*
+
+---
+
+#### V6.15 — How much of the contribution is the working system vs a documented trail of rejected solutions?
+
+Documented as "Evaluated & Rejected": asymmetric loss retraining, SMOTE, multi-agent LLM (§A.1, Q14, Q11, Change 6).  
+Working contributions: ResNet-50 + EfficientNet-B4 pipeline, Grad-CAM, LSTM captioner v2, CCS integration, Safety Multiplier, Flask web application, MySQL history.
+
+**Honest answer:** *"The dissertation makes both types of contribution: (1) a working integrated system, and (2) a documented engineering decision trail. In academic terms, documented negative results — showing what was tried and why it failed — are a legitimate contribution. The working system is the primary result; the rejected solutions are secondary contributions demonstrating methodological rigour and honest evaluation of alternatives."*
+
+---
+
+### Critical Gaps Summary
+
+| # | Gap | What to Prepare |
+|---|---|---|
+| 1 | BioMistral vs Mistral-7B deployment | Document shows Mistral-7B is deployed; be honest that BioMistral is intent, not confirmed deployment |
+| 2 | Overall System AUC/F1 computation | Arithmetic mean of two model metrics, confirmed by calculation — not against a fused ground-truth label |
+| 3 | Table 6 metrics stale post-hoc | 1.25× multiplier applied after evaluation; actual deployed Specificity/Sensitivity not recalculated |
+| 4 | ODIR-5K patient leakage | Image-level split; no patient-level stratification confirmed; both eyes may overlap train/test |
+| 5 | ODIR-5K binary CVD label derivation | Not documented in this file — must clarify before viva |
+| 6 | EfficientNet-B4 at 224×224 vs native 380×380 | Not tested; may degrade reported AUC |
+| 7 | CCS validation and reproducibility | No held-out validation set; LLM output is non-deterministic and unvalidated |
+| 8 | No ablation for fusion weights | Weights are principled but not empirically optimised |
+| 9 | Grad-CAM not applied to EfficientNet-B4 | XAI is only half-delivered; CVD model is a black box |
+| 10 | Chatbot grounding mechanism | No RAG or retrieval; grounded only by initial conversation context |
+
+---
+
+## 16. Uniqueness — Detailed Technical Analysis
+
+> **Scope:** This section documents precisely what is and is not novel in this project, grounded in what is implemented and recorded in this file. Every claim is traceable to a specific section.
+
+---
+
+### 16.1 What Has Been Built (Factual Inventory)
+
+The following components exist in the working prototype, as documented across §1–§14 and Appendix A:
+
+| Component | What It Does | Source in Docs |
+|---|---|---|
+| ResNet-50 DR Classifier | Fine-tuned on APTOS 2019 (3,662 images), predicts DR Grade 0–4 | §4, §5 |
+| EfficientNet-B4 CVD Classifier | Fine-tuned on ODIR-5K (12,460 images), outputs binary CVD probability 0.0–1.0 | §4, §5 |
+| Weighted Late Fusion | `(0.40 × norm_DR + 0.60 × CVD) × 1.25` combining both scores | §8, §12.1 |
+| 3-Input CCS Fusion | `(0.30 × norm_DR + 0.45 × CVD + 0.25 × CCS) × 1.25` when clinical history provided | §13 Q6, A.1 |
+| Grad-CAM Heatmap | Hooks into ResNet-50 `layer4`, generates colour heatmap overlay | §3 Step 5 |
+| LSTM Image Captioner v2 | Encoder-decoder trained on APTOS with label-to-caption templating; WeightedRandomSampler + ReduceLROnPlateau + padding-aware loss | §14, A.2 |
+| LSTM Safety Override | Keyword matching to detect caption severity; overrides under-stated captions with guaranteed-correct template | §14 Fix 1, A.2 |
+| Mistral-7B LLM Report | Scores injected into prompt → Mistral-7B via Ollama → AI narrative report | §3 Step 6, Change 2 |
+| Chatbot | Follow-up Q&A with refusal guardrail for off-topic questions | §1, Change 4 |
+| Clinical Safety Multiplier | Raw fused score × 1.25 before threshold comparison | §11, §12.1 |
+| Lowered Low Risk Threshold | 0.33 → 0.25 to reduce false safe declarations | §11, §12.2 |
+| Clinical Context Score (CCS) | Extracted from free-text history by Mistral-7B, range 0.0–1.0 | A.1, §13 Q6 |
+| Flask Web Application | Full-stack: image upload, inference, heatmap, report, chatbot, history page | §1, §10 |
+| MySQL History | Stores predictions, heatmaps, LLM reports, chat history per session | §9 |
+
+---
+
+### 16.2 What Makes This Combination Distinct
+
+Each individual component (ResNet-50, EfficientNet-B4, Grad-CAM, Ollama, LSTM) is an established, off-the-shelf technique. The documented novelty lies in **how they are combined** and in **the clinical safety mechanism** engineered at the system level.
+
+#### 16.2.1 Dual-Model Retinal Fusion for Two Distinct Clinical Targets
+
+Most published retinal AI systems address a single clinical question (either DR grading or CVD risk). This system trains two independent models on two independent datasets (APTOS 2019 for DR, ODIR-5K for CVD) and fuses their outputs into a single risk score via a weighted formula. As documented in §8, this is classified as Weighted Late Fusion / Score-Level Fusion from ensemble learning literature. The distinction from a simple dual-model ensemble is that the two models predict **different clinical targets from the same input image**, using their outputs as complementary evidence.
+
+#### 16.2.2 Clinical Context Score (CCS) as a Third Fusion Input
+
+The CCS mechanism is the most architecturally novel element documented. As described in A.1 and §13 Q6:
+
+- When a user provides free-text clinical history, Mistral-7B reads it and extracts a continuous CCS (0.0–1.0).
+- The fusion formula switches from 2-input to 3-input mode automatically.
+- The CCS injects non-retinal, non-image clinical evidence into a fundamentally image-based pipeline.
+
+This addresses a physiological limitation explicitly documented in A.1 and Q2: *"a patient with 14+ years of diabetes and documented ischaemic heart disease can produce a retinal image that appears entirely normal under CFP."* No retraining can resolve this; the CCS is the only mechanism documented that introduces clinical context beyond what the retina itself reveals.
+
+#### 16.2.3 Clinical Safety Multiplier + Lowered Threshold (Post-Hoc Conservative Architecture)
+
+As documented in §11 and A.1, three post-hoc mechanisms work together:
+1. `adjusted_fused = fused × 1.25` — systematically pushes all borderline scores upward.
+2. Low Risk threshold reduced from 0.33 to 0.25 — makes it harder to declare a patient safe.
+3. CCS as third input — raises scores for patients with high-risk clinical histories.
+
+The document justifies this approach specifically over model-level alternatives (§14, A.1):
+- Asymmetric loss retraining was rejected because it would have degraded the ResNet-50's 99.45% Specificity.
+- SMOTE was rejected because synthetically generating "normal-looking retinas belonging to high-risk patients" is physiologically impossible — such images genuinely look normal by definition.
+- Lowering the threshold alone was documented as insufficient for cases where retinal scores are intrinsically near zero (CVD = 0.009, DR = 0).
+
+The combination of all three post-hoc mechanisms as an auditable, reversible, architecture-level safety system — rather than a model-weight baking approach — is the documented engineering contribution.
+
+#### 16.2.4 LSTM Safety Override as a Dual-Layer Captioning Defence
+
+As documented in §14 and A.2, the v1 LSTM showed class confusion on severe grades: Grade 3 and Grade 4 images were being captioned as Grade 2 (moderate) — a clinically dangerous false negative. Two mechanisms were deployed together:
+
+- **Fix 1 (inference):** A Safety Override using keyword matching to intercept any caption that understates severity relative to the CNN grade, replacing it with the guaranteed-correct template. This is described as analogous to the 1.25× Clinical Safety Multiplier — a lightweight, auditable guardrail.
+- **Fix 2 (training):** Retraining with WeightedRandomSampler (3× sampling boost for Grade 3/4), ReduceLROnPlateau scheduler, and padding-aware CrossEntropyLoss (`ignore_index=0`).
+
+The dual-layer design — train the model to be correct AND intercept it if it is wrong — is documented as a deliberate defence-in-depth strategy.
+
+#### 16.2.5 Multi-Agent LLM Architecture (Designed, Not Implemented)
+
+As documented in Q11 (§13) and A.3, a multi-agent design was conceived where separate specialised LLM agents (DR Agent, CVD Agent, Fusion Agent, Safety Agent) would each handle a focused task. This was formally rejected for implementation due to:
+- 4 sequential LLM calls per prediction × 30–60 seconds each = 2–4 minutes per prediction.
+- Complexity risk near dissertation deadline.
+- Diminishing returns over the current single-agent prompt that already receives all four evidence streams simultaneously.
+
+The multi-agent design is documented as the primary architectural Future Work recommendation.
+
+---
+
+### 16.3 What Is Not Novel (Honest Assessment)
+
+| Element | Why It Is Not Novel |
+|---|---|
+| ResNet-50 with ImageNet transfer learning | Standard architecture; pretrained weights from PyTorch torchvision |
+| EfficientNet-B4 with ImageNet transfer learning | Standard architecture; pretrained weights from PyTorch torchvision |
+| Grad-CAM | Established technique (Selvaraju et al., 2017); applied to standard `layer4` hook |
+| LSTM image captioning | Established encoder-decoder paradigm; trained on synthetically templated captions, not real clinical text |
+| Mistral-7B via Ollama | Off-the-shelf open-weight LLM; no fine-tuning performed |
+| Flask + MySQL web application | Standard web stack; no novel framework contributions |
+| Weighted Late Fusion (score-level) | Established ensemble technique from published literature (cited in §8) |
+
+---
+
+### 16.4 The Defensible Uniqueness Claim
+
+Based strictly on what is documented, the unique contribution of this project is:
+
+> *"An end-to-end, explainable, multimodal retinal AI web application that fuses DR grading and CVD risk scoring with a free-text-derived Clinical Context Score, governed by a post-hoc clinical safety mechanism (1.25× multiplier + lowered threshold), and defended at the captioning layer by a dual-layer LSTM Safety Override — all deployed as a working Flask web application on consumer-grade Apple M3 hardware using only local, privacy-preserving inference."*
+
+This claim is supported by every section of this document. It is an **integration and engineering contribution**, not a novel algorithm.
+
+---
+
+## 17. Methodology
+
+> **Purpose:** This chapter explains the methods selected to design, train, evaluate, and validate the Retinal XAI system, with evidence for why each was appropriate and what alternatives were considered and dismissed.
+
+---
+
+### 17.1 Research Approach
+
+This project employs an **empirical, experimental methodology** grounded in supervised machine learning. The approach is:
+
+1. **Hypothesis-driven:** The central hypothesis is that fusing retinal DR severity with CVD risk probability produces a more clinically informative risk score than either model alone, and that integrating non-image clinical context (CCS) further improves safety for cases where retinal images are physiologically uninformative.
+2. **Prototype-first:** A working research prototype is built, evaluated against held-out test data, and iteratively improved based on identified failures (documented in §7 and §14).
+3. **Failure-driven iteration:** Real-world testing (§11) exposed a false-negative case; this drove the documented architectural changes (Clinical Safety Multiplier, CCS, lowered threshold).
+
+---
+
+### 17.2 Dataset Selection and Justification
+
+#### APTOS 2019 Blindness Detection Dataset
+
+| Property | Value |
+|---|---|
+| Images | 3,662 colour fundus photographs |
+| Labels | DR Grade 0–4 (ordinal, 5-class) |
+| Task | Diabetic retinopathy grading |
+| Split | 70% Train / 15% Validation / 15% Test |
+
+**Why selected:** APTOS 2019 is a widely used, publicly available benchmark dataset for DR grading. It contains clinically labelled CFP images with sufficient volume for fine-tuning a pretrained ResNet-50. As documented in §4, the dataset was used exclusively for the DR classification task.
+
+**Known limitation:** Severe class imbalance — Grade 0 has approximately 9× more images than Grade 3, as documented in §7 Change 6 and §12.2 Item 2. This constrained the ResNet-50's Macro F1 score.
+
+#### ODIR-5K Ocular Disease Intelligent Recognition
+
+| Property | Value |
+|---|---|
+| Images | 12,460 colour fundus photographs |
+| Labels | Binary CVD risk (derived from multi-label annotations) |
+| Task | Binary cardiovascular risk classification |
+| Split | 70% Train / 15% Validation / 15% Test |
+
+**Why selected:** ODIR-5K is a large-scale, publicly available fundus dataset containing annotations for systemic and ocular conditions including hypertensive retinopathy and related cardiovascular markers, as described in §13 Q13. Its scale (12,460 images) is appropriate for fine-tuning EfficientNet-B4.
+
+---
+
+### 17.3 Model Architecture Selection
+
+#### ResNet-50 for DR Grading
+
+**Why ResNet-50:** ResNet-50 is a well-established convolutional neural network architecture with residual connections that prevent vanishing gradients in deep networks. It is widely used in medical image classification and has a documented strong baseline on retinal fundus photography. Transfer learning from ImageNet reduces the data requirement, making it suitable for the APTOS 2019 dataset size of 3,662 images.
+
+**Architecture decisions (from §4):**
+- Frozen: Layer1 and Layer2 (low-level generic feature extractors — edges, textures — transfer well from ImageNet to retinal CFP without fine-tuning).
+- Fine-tuned: Layer3, Layer4, FC head (domain-specific feature learning).
+- FC Head: `Dropout(0.5) → Linear(2048, 5)` — Dropout(0.5) provides regularisation against overfitting on the relatively small dataset.
+- Loss: CrossEntropyLoss for 5-class prediction.
+- Optimiser: AdamW (lr=1e-4) — adaptive learning rate with weight decay for improved generalisation.
+
+**Alternatives considered and dismissed:**
+- Retraining from scratch: Rejected — insufficient data volume (3,662 images) for training a deep network from random initialisation.
+- VGG-16: Considered but rejected — far fewer parameters in later layers compared to ResNet-50's residual architecture; also heavier in inference on Apple M3 MPS.
+
+#### EfficientNet-B4 for CVD Risk
+
+**Why EfficientNet-B4:** EfficientNet architectures use compound scaling (width, depth, resolution) to achieve high accuracy at lower computational cost. B4 offers a strong accuracy-efficiency trade-off suitable for binary classification on a larger dataset (12,460 images). As documented in §4, it achieves an AUC of 0.9675 on the test set.
+
+**Architecture decisions (from §4):**
+- FC Head: `Dropout(0.3) → Linear(1792, 1) → Sigmoid` — Sigmoid output produces a continuous probability (0.0–1.0) appropriate for score-level fusion.
+- Loss: BCEWithLogitsLoss — numerically stable binary cross-entropy for binary classification.
+- Optimiser: AdamW (lr=1e-4).
+
+**Note on input resolution:** As documented in §3, all images are preprocessed to 224×224 for pipeline uniformity. EfficientNet-B4's native resolution is 380×380. No ablation was run at native resolution — this is an acknowledged methodological limitation.
+
+---
+
+### 17.4 Explainability Method: Grad-CAM
+
+**Why Grad-CAM:** Gradient-weighted Class Activation Mapping (Grad-CAM) produces visual heatmaps by computing the gradient of the class score with respect to the final convolutional layer's activations. This identifies which spatial regions of the retinal image were most influential in the model's decision, making the model's reasoning interpretable to a human reviewer.
+
+As documented in §3 Step 5, Grad-CAM hooks into ResNet-50's `layer4` — the deepest convolutional block, which captures the most semantically rich, high-level features (haemorrhages, exudates, vascular changes) relevant to DR grading.
+
+**Limitation:** Grad-CAM is only applied to ResNet-50. The EfficientNet-B4 CVD model has no explainability output — it is a black box in the current system. This is documented as a gap in §16.1 and the Viva Q&A (V6.1).
+
+---
+
+### 17.5 Fusion Strategy
+
+**Why Weighted Late Fusion (Score-Level Fusion):** As documented in §8, this approach is established in ensemble learning literature. The two models operate independently on the same input image and produce normalised scores; these are combined via a weighted formula. This is appropriate because:
+
+1. The models were trained on different datasets for different clinical targets — no shared feature space exists for feature-level fusion.
+2. Score-level fusion is interpretable: the contribution of each model to the final risk tier is directly readable from the formula weights.
+3. The formula is auditable and reversible — weights can be adjusted without retraining any model.
+
+**Weight justification (from §8):**
+- CVD weight 0.6: EfficientNet-B4 is the primary predictor; its sigmoid output is a continuous, granular probability.
+- DR weight 0.4: DR grade is an ordinal integer (0–4), producing a step-wise normalised score (0, 0.25, 0.5, 0.75, 1.0) — less granular than the CVD score.
+
+**Limitation:** No ablation experiment was conducted to compare these weights against alternatives (e.g., 0.5/0.5 or 0.7/0.3). The weights are clinically reasoned but not empirically optimised. This is an acknowledged gap.
+
+---
+
+### 17.6 Clinical Safety Methodology
+
+#### Why Post-Processing Rather Than Model Retraining
+
+Three retraining strategies were evaluated and explicitly rejected (§14, A.1):
+
+| Strategy | Why Rejected |
+|---|---|
+| Asymmetric loss (`pos_weight`) | Would degrade ResNet-50's 99.45% Specificity — causing false positives in healthy patients |
+| SMOTE oversampling | Cannot generate images of "a retina that looks normal but belongs to a high-risk patient" — these images genuinely look normal |
+| Threshold lowering alone | Insufficient for cases where retinal scores are intrinsically near zero (e.g., structural cardiac defects with no retinal manifestation) |
+
+**Final methodology (from §11, §14, A.1):** A combination of three post-hoc, auditable mechanisms:
+1. Clinical Safety Multiplier (`× 1.25`) applied after fusion.
+2. Lowered Low Risk threshold (0.33 → 0.25).
+3. Clinical Context Score (CCS) from free-text history as a third fusion input.
+
+---
+
+### 17.7 LLM Methodology
+
+**Why Mistral-7B via Ollama (deployed model per §1–§3, Change 2):** Local inference via Ollama ensures no patient data is transmitted to external servers. Mistral-7B is an open-weight model capable of generating structured clinical narratives from structured prompt inputs. Q9 (§13) justifies BioMistral-7B as the intended model (PubMed fine-tuning, medical vocabulary), but all operational sections of the document confirm Mistral-7B is the deployed model.
+
+**Alternatives dismissed:**
+- MedGemma (HuggingFace): Rejected — 401 Gated Access error prevented download (Change 2, §7).
+- Multi-agent LLM: Designed but rejected — 4 sequential calls would push prediction time to 2–4 minutes on M3 hardware (Q11, A.3).
+
+---
+
+### 17.8 LSTM Captioning Methodology
+
+**Why label-to-caption templating (from §13 Q12, A.2):**
+
+Real paired retinal image-report datasets are unavailable due to:
+- GDPR/HIPAA restrictions on ophthalmology reports.
+- No large-scale public paired fundus image-report dataset equivalent to Indiana University Chest X-Ray.
+- Annotation cost (requires trained ophthalmologist per image).
+
+**Solution:** APTOS 2019 DR grade labels (0–4) were programmatically mapped to clinically accurate templated sentences. The LSTM (Encoder: ResNet-50 features; Decoder: LSTM) was trained to predict these captions from visual features.
+
+**Retraining v2 methodology (§14):**
+- WeightedRandomSampler: 3× sampling boost for Grade 3/4 to address class imbalance.
+- ReduceLROnPlateau: Adaptive LR halving when val loss plateaus (patience=2).
+- `ignore_index=0`: Padding-aware loss to prevent reward for predicting padding tokens.
+- Early Stopping: patience=3, training halted at Epoch 11, best weights saved from Epoch 8 (Val Loss 0.0247).
+
+---
+
+## 18. Implementation
+
+> **Purpose:** This chapter describes what was built, how it was built, the technical decisions made, problems encountered, and how they were resolved. All claims are grounded in §1–§14 and Appendix A of this document.
+
+---
+
+### 18.1 System Architecture Overview
+
+The system is a full-stack Flask web application (§1, §2, §10) deployed locally on Apple MacBook Air M3 (8GB RAM) with GPU acceleration via the MPS Backend. The complete pipeline is documented in §3:
+
+```
+User uploads image
+       ↓
+1. PREPROCESS — Resize to 224×224, normalise, convert to float32 tensor
+       ↓
+2. DR INFERENCE — ResNet-50 → 5 class probabilities → DR Grade + Probability
+       ↓
+3. CVD INFERENCE — EfficientNet-B4 → sigmoid score → CVD Risk (0.0–1.0)
+       ↓
+4. FUSION — Fused Score = (DR Grade/4 × 0.4) + (CVD Score × 0.6) × 1.25
+            < 0.25 = Low | 0.25–0.67 = Moderate | > 0.67 = High
+       ↓
+5. GRAD-CAM — Hooks into ResNet-50 layer4, generates colour heatmap overlay
+       ↓
+6. LLM REPORT — Scores injected into prompt → Mistral-7B → Safety Filter → Report
+       ↓
+7. DATABASE SAVE — Prediction + Heatmap + LLM Report committed to MySQL
+       ↓
+8. RESULTS PAGE rendered to user
+```
+
+---
+
+### 18.2 Technology Stack (from §2)
+
+| Layer | Technology | Justification |
+|---|---|---|
+| Backend | Python 3.10, Flask | Lightweight web framework; fast to iterate; native PyTorch integration |
+| Database | MySQL + SQLAlchemy | Relational storage for structured prediction history; SQLAlchemy ORM for Pythonic queries |
+| DR Model | ResNet-50 (PyTorch) | Proven architecture for medical image classification; ImageNet pretrained |
+| CVD Model | EfficientNet-B4 (PyTorch) | High accuracy, efficient inference; appropriate for binary classification on larger dataset |
+| Explainability | Grad-CAM | Visual, human-interpretable heatmaps; standard XAI technique for CNNs |
+| LLM | Mistral-7B via Ollama | Local inference; no data leaves the machine; open-weight model |
+| GPU | Apple M3 MPS Backend | Hardware acceleration on MacBook Air without CUDA |
+| Frontend | HTML, CSS, JavaScript | Standard web stack; no framework overhead |
+
+---
+
+### 18.3 Model Implementation
+
+#### ResNet-50 Training Configuration (§4)
+
+```
+Architecture:    ResNet-50 (pretrained ImageNet)
+Frozen:          Layer1, Layer2
+Trainable:       Layer3, Layer4, FC Head
+FC Head:         Dropout(0.5) → Linear(2048, 5)
+Loss:            CrossEntropyLoss
+Optimiser:       AdamW (lr=1e-4)
+Dataset:         APTOS 2019 — 3,662 images
+Split:           70% Train / 15% Val / 15% Test
+Best Epoch:      Epoch 3 of 8
+```
+
+#### EfficientNet-B4 Training Configuration (§4)
+
+```
+Architecture:    EfficientNet-B4 (pretrained ImageNet)
+FC Head:         Dropout(0.3) → Linear(1792, 1) → Sigmoid
+Loss:            BCEWithLogitsLoss
+Optimiser:       AdamW (lr=1e-4)
+Dataset:         ODIR-5K — 12,460 images
+Split:           70% Train / 15% Val / 15% Test
+Best Epoch:      Epoch 10 of 15
+```
+
+---
+
+### 18.4 Fusion Implementation (§8, §12.1, §13 Q6, A.1)
+
+**2-input mode (no clinical history):**
+```python
+adjusted_fused = ((0.4 * (dr_grade / 4.0)) + (0.6 * cvd_score)) * 1.25
+```
+
+**3-input mode (clinical history provided):**
+```python
+adjusted_fused = ((0.30 * (dr_grade / 4.0)) + (0.45 * cvd_score) + (0.25 * ccs)) * 1.25
+```
+
+**Threshold mapping (post-multiplier):**
+
+| Adjusted Fused Score | Risk Level |
+|---|---|
+| < 0.25 | Low Risk |
+| 0.25 – 0.67 | Moderate Risk |
+| > 0.67 | High Risk |
+
+The threshold was updated from the original 0.33 to 0.25 as part of the Clinical Safety Fix (§11).
+
+---
+
+### 18.5 Database Schema (§9)
+
+| Table | Key Columns | Purpose |
+|---|---|---|
+| predictions | id, dr_grade, dr_label, dr_probability, cvd_score, fused_score, risk_level | Core prediction record per analysis |
+| heatmaps | id, prediction_id, model_name, heatmap_path | Grad-CAM image file reference |
+| llm_reports | id, prediction_id, llm_model, report_text, was_filtered | LLM-generated report with safety flag |
+| chat_history | id, prediction_id, user_message, llm_response, was_filtered | Follow-up chatbot conversation |
+
+---
+
+### 18.6 LSTM Captioner Implementation (§14, A.2)
+
+The captioner uses an Encoder-Decoder architecture:
+- **Encoder:** ResNet-50 visual features extracted from the input image.
+- **Decoder:** LSTM trained to output clinical caption tokens from the visual embedding.
+
+**v1 Training:** 80/20 train/val split, Early Stopping (patience=3), best weights at Epoch 6 (Val Loss 0.0177). Class confusion identified post-training: Grade 3/4 images captioned as Grade 2.
+
+**v2 Improvements (§14):**
+- `WeightedRandomSampler`: 3× sampling weight for Grade 3 and Grade 4 images.
+- `ReduceLROnPlateau`: LR halved when val loss fails to improve for 2 consecutive epochs.
+- `ignore_index=0`: Padding tokens excluded from loss calculation.
+- Best checkpoint: Epoch 8, Val Loss 0.0247.
+
+**Safety Override (§14 Fix 1, A.2):** After LSTM generates a caption, the system:
+1. Infers the caption's implied severity grade via keyword matching.
+2. Compares against the ResNet-50 DR grade.
+3. If the caption understates severity (implied grade < DR grade), it is replaced with the guaranteed-correct template for that DR grade.
+
+---
+
+### 18.7 Problems Encountered and Solutions (§7, §12.2, A.5)
+
+| # | Problem | Root Cause | Solution Implemented |
+|---|---|---|---|
+| 1 | Port 5000 conflict | macOS AirPlay Receiver occupied port 5000 | Changed Flask to port 5001 |
+| 2 | MedGemma 401 error | Gated HuggingFace model requires approval | Removed MedGemma; system uses Mistral-7B via Ollama exclusively |
+| 3 | Ollama 120s timeout | Mistral-7B (4.1GB) loads from external SSD; exceeds default timeout | Increased `OLLAMA_TIMEOUT` to 300s in `config.py` |
+| 4 | Chatbot answered off-topic questions | No refusal instruction in base prompt | Added strict refusal instruction in `llm/prompt_builder.py` |
+| 5 | Ollama model storage on internal drive | Default Ollama path on Mac internal storage | Relocated models to `/Volumes/FELIX SSD/FINAL YEAR/ollama_models/` via `OLLAMA_MODELS` env variable |
+| 6 | Class imbalance (ResNet-50 DR) | Grade 0 has ~9× more images than Grade 3/4 | Applied Weighted CrossEntropyLoss [0.5, 2.0, 1.0, 3.5, 2.5]; negligible improvement (F1: 0.6465→0.6483) |
+| 7 | BatchNorm crash on single-image batch | `BatchNorm1d` cannot compute variance of 1 item | Added `drop_last=True` to DataLoader |
+| 8 | ModuleNotFoundError in training scripts | Import paths assumed fixed working directory | Injected `sys.path.append(os.path.dirname(...))` into all ML scripts |
+| 9 | LSTM Grade 3/4 captioned as Grade 2 | Severe class imbalance; LSTM undertrained on rare grades | WeightedRandomSampler (3× boost) + Safety Override guardrail |
+| 10 | False negative: sick patient scored Low Risk | Structural cardiac defect not visible on retina | Clinical Safety Multiplier (1.25×) + lowered threshold (0.33→0.25) + CCS |
+
+---
+
+### 18.8 Hardware Constraints and Their Impact
+
+As documented throughout §12.2 Item 3, Q11, and A.3:
+
+- **Hardware:** Apple MacBook Air M3, 8GB RAM, Apple MPS GPU backend.
+- **Ollama cold-start:** Loading Mistral-7B (4.1GB) from external SSD to 8GB RAM takes approximately 2 minutes, hence the 300s timeout.
+- **LLM inference time:** 30–60 seconds per Mistral-7B call on this hardware.
+- **Impact on architecture:** The multi-agent LLM design (4 sequential calls = 2–4 minutes) was explicitly rejected because of this hardware limitation (Q11, A.3). The single-agent design was selected as the only feasible option.
+- **External access:** `ngrok` was used for academic demonstrations where university cPanel restrictions prevented direct port forwarding (§12.2 Item 5).
+
+---
+
+### 18.9 Relevance to Hypotheses
+
+| Hypothesis | Implementation Component | Evidence |
+|---|---|---|
+| Retinal DR grade predicts diabetic retinopathy severity | ResNet-50 fine-tuned on APTOS 2019 | AUC 0.9332, Specificity 0.9520 on test set (§6) |
+| Retinal fundus features predict CVD risk probability | EfficientNet-B4 fine-tuned on ODIR-5K | AUC 0.9675, Sensitivity 0.9245 on test set (§6) |
+| Fused risk score is more clinically informative than either model alone | Weighted Late Fusion formula | Clinical reasoning documented in §8; quantitative comparison in §6 |
+| Clinical context (non-image) improves false negative detection | CCS third fusion input | Documented in A.1, §13 Q6; conceptually validated but not quantitatively tested against a labelled borderline dataset |
+| Grad-CAM makes DR model decisions interpretable | Grad-CAM hook on ResNet-50 `layer4` | Heatmap stored per prediction in `heatmaps` table (§9) |
+
+---
+
+## 19. Testing and Results
+
+> **Purpose:** This chapter presents all quantitative and qualitative evaluation results documented in this file. Every figure is as reported in §5 and §6; no additional results are fabricated.
+
+---
+
+### 19.1 Training Evaluation
+
+#### ResNet-50 — Training Log (§5)
+
+| Metric | Best Epoch (3 of 8) |
+|---|---|
+| Train Loss | 0.2430 |
+| Train AUC | 0.9845 |
+| Val Loss | 0.5612 |
+| Val AUC | 0.9338 |
+
+**Observation:** The gap between Train AUC (0.9845) and Val AUC (0.9338) indicates the model begins specialising to training data faster than it generalises. Best Epoch 3 of 8 suggests early stopping would have been beneficial; training continued but the Epoch 3 checkpoint was retained as the best.
+
+#### EfficientNet-B4 — Training Log (§5)
+
+| Metric | Best Epoch (10 of 15) |
+|---|---|
+| Train Loss | 0.0207 |
+| Train AUC | 0.9961 |
+| Val Loss | 0.0666 |
+| Val AUC | 0.9594 |
+
+**Observation:** Train Loss (0.0207) vs Val Loss (0.0666) — approximately a 3× ratio — indicates overfitting. Only Dropout(0.3) was used as regularisation. The model achieves strong performance (Val AUC 0.9594) despite the overfitting signal.
+
+---
+
+### 19.2 Test Set Evaluation (§6)
+
+Evaluated by `evaluate_models.py` on the unseen 15% test set using `sklearn.metrics`.
+
+| Metric | ResNet-50 (DR) | EfficientNet-B4 (CVD) | Overall System |
+|---|:---:|:---:|:---:|
+| AUC-ROC | 0.9332 | 0.9675 | **0.9504** |
+| F1-Score | 0.6465 | 0.9172 | **0.7819** |
+| Sensitivity (Recall) | 0.6362 | 0.9245 | **0.7804** |
+| Specificity | 0.9520 | 0.9945 | **0.9733** |
+
+**Note on "Overall System" figures:** As verified by arithmetic: (0.9332 + 0.9675)/2 = 0.9504 and (0.6465 + 0.9172)/2 = 0.7819. The Overall System figures are the arithmetic mean of the two individual models' metrics — they are not measured against a ground-truth fused-risk label.
+
+**Note on post-hoc changes:** Table 6 figures were computed before the Clinical Safety Multiplier (1.25×) and lowered threshold (0.33→0.25) were applied. The deployed system's actual Specificity will be lower and Sensitivity higher than these reported figures. Updated metrics were not recalculated.
+
+---
+
+### 19.3 ResNet-50 Analysis
+
+**Strengths:**
+- AUC 0.9332 — strong discriminative ability between DR grades.
+- Specificity 0.9520 — correctly identifies Grade 0 (no DR) in ~95.2% of cases. Before the imbalance fix, this was documented as 99.45% on the model alone (§12.2 Item 1).
+
+**Weaknesses:**
+- Sensitivity 0.6362 — misses DR in approximately 36.4% of positive cases.
+- F1 0.6465 — driven down by class imbalance: Grade 0 dominates the dataset (~9× more images than Grade 3/4).
+- Weighted CrossEntropyLoss attempted (Change 6, §7): F1 improved to 0.6483 — described as "negligible."
+- Conclusion (§7 Change 6, §12.2 Item 2): Structural data imbalance requires SMOTE or GAN-based augmentation in future iterations, not loss weighting.
+
+---
+
+### 19.4 EfficientNet-B4 Analysis
+
+**Strengths:**
+- AUC 0.9675 — excellent discriminative ability for binary CVD risk.
+- F1 0.9172 — strong balance of precision and recall.
+- Sensitivity 0.9245 — detects CVD risk in ~92.5% of positive cases.
+- Specificity 0.9945 — extremely low false positive rate.
+
+**Weaknesses:**
+- Train/Val loss ratio ~3× (0.0207 vs 0.0666) — evidence of overfitting.
+- No regularisation beyond Dropout(0.3).
+- Input resized from native 380×380 to 224×224 without ablation.
+
+---
+
+### 19.5 LSTM Captioner Evaluation (§13 Q4, §14)
+
+The LSTM captioner is evaluated using Cross-Entropy Loss (not AUC, as documented in §13 Q4 — AUC is inapplicable to sequence generation tasks).
+
+**v1 Results:**
+- Training started at loss ~4.14 (near-random word prediction).
+- Converged to Val Loss 0.0177 at Epoch 6. Early Stopping triggered.
+- Class confusion identified: Grade 3/4 images → Grade 2 captions.
+
+**v2 Training Log (§14):**
+
+| Epoch | Avg Train Loss | Avg Val Loss | Action |
+|---|---|---|---|
+| 5 | 0.0222 | 0.0272 | ✅ Saved (best so far) |
+| 6 | 0.0198 | 0.0441 | Patience 1/3 |
+| 7 | 0.0187 | 0.0292 | Patience 2/3 |
+| 8 | 0.0166 | **0.0247** | ✅ Saved (new best) |
+| 9 | 0.0155 | 0.0336 | Patience 1/3 |
+| 10 | 0.0131 | 0.0333 | Patience 2/3 |
+| 11 | 0.0124 | 0.0254 | LR reduced 0.001→0.0005, Patience 3/3 |
+| — | — | — | **Early Stopping triggered** |
+
+**v2 best checkpoint:** Epoch 8, Val Loss 0.0247 (higher than v1's 0.0177 due to harder training distribution from WeightedRandomSampler).
+
+**v2 class confusion resolution:**
+
+| DR Grade | v1 LSTM Output | v2 Status |
+|---|---|---|
+| 0 | ✅ Normal | ✅ Normal |
+| 1 | ✅ Mild | ✅ Mild |
+| 2 | ❌ Proliferative (Grade 4) | ✅ Moderate (with Safety Override) |
+| 3 | ❌ Moderate (Grade 2) | ✅ Severe (with Safety Override) |
+| 4 | ❌ Moderate (Grade 2) | ✅ Proliferative (with Safety Override) |
+
+---
+
+### 19.6 Real-World Test Case (§11)
+
+| Field | Value |
+|---|---|
+| Patient | Female, 14 years diabetes history |
+| Diagnosis | Reverse blood flow in heart (detected 2 years after image) |
+| DR Grade | 0 (No DR detected) |
+| CVD Score | 0.0092 |
+| Fused Score (original) | 0.0055 |
+| Risk Level (original) | **Low** — False Negative |
+
+**Root cause (§11):** The retinal image was taken 2 years before the cardiac diagnosis. The structural cardiac condition (valvular regurgitation) leaves no visible microvascular markers on the retina. The image was genuinely normal — no retraining could produce a High Risk score on this image.
+
+**Effect of Clinical Safety Fix (§11):**
+- Adjusted score: 0.0055 × 1.25 = 0.0069 → Still **Low**.
+- This is expected and documented: the fix targets borderline cases (e.g., CVD score ~0.20), not cases where the retina genuinely shows no markers.
+
+---
+
+### 19.7 Class Imbalance Fix — Change 6 (§7, §12.2)
+
+| Configuration | F1-Score |
+|---|---|
+| Original CrossEntropyLoss | 0.6465 |
+| Weighted CrossEntropyLoss [0.5, 2.0, 1.0, 3.5, 2.5] | 0.6483 |
+| Improvement | +0.0018 (described as negligible) |
+
+**Conclusion (§7):** The improvement is negligible. The imbalance is too severe for loss-weighting alone. Future work requires SMOTE or GAN-based data augmentation. Note: SMOTE was also evaluated and rejected for the false-negative problem (A.1) — for a different reason (cannot synthesise normal-looking high-risk images). For class imbalance, SMOTE to generate more Grade 3/4 images remains future work.
+
+---
+
+### 19.8 Limitations of Testing Methodology
+
+1. **No confidence intervals:** All reported figures are single-run point estimates. No cross-validation, bootstrap resampling, or statistical significance testing was performed.
+2. **No ablation study:** Fusion weights (0.4/0.6, 0.30/0.45/0.25), Safety Multiplier (1.25×), and threshold (0.25) were not empirically optimised against alternatives.
+3. **Image-level split:** No patient-level stratification was confirmed for ODIR-5K, which contains paired left/right eye images per patient.
+4. **Post-hoc changes not re-evaluated:** Table 6 metrics precede the Clinical Safety Multiplier and threshold changes. The deployed system's actual metrics are unknown.
+5. **CCS not validated:** No labelled dataset of clinical histories with known correct CCS values was used to validate LLM extraction accuracy.
+6. **Single real-world test case:** One retrospective case was used; it produced a false negative even after the fix (correctly, since the image was genuinely normal).
+
+---
+
+## 20. Discussion and Conclusion
+
+> **Purpose:** This chapter ties together the research objectives, methodology, implementation, and results. All references to specific findings cite the relevant sections of this document.
+
+---
+
+### 20.1 Recap of Research Objectives
+
+This project set out to build a research prototype that:
+1. Classifies diabetic retinopathy (DR) severity from retinal fundus images (§1, §4).
+2. Predicts cardiovascular disease (CVD) risk from the same image (§1, §4).
+3. Fuses both outputs into a single, human-interpretable risk tier (§8).
+4. Provides visual explainability through Grad-CAM heatmaps (§3 Step 5).
+5. Generates a natural language AI report and chatbot (§1).
+6. Demonstrates clinical safety awareness through a false-negative mitigation mechanism (§11, A.1).
+
+All six objectives are addressed in the working prototype, as documented across §1–§14 and Appendix A.
+
+---
+
+### 20.2 What Was Proved
+
+#### Hypothesis 1: ResNet-50 can classify DR severity from retinal fundus images
+
+**Result:** AUC 0.9332 and Specificity 0.9520 on the APTOS 2019 test set (§6). The model discriminates well between DR-present and DR-absent cases. **Partially proved:** Sensitivity of 0.6362 indicates 36.4% of positive cases are missed — a known limitation driven by class imbalance (§7 Change 6). The model is not clinically deployable at this performance level.
+
+#### Hypothesis 2: EfficientNet-B4 can predict CVD risk from retinal fundus images
+
+**Result:** AUC 0.9675, F1 0.9172, Sensitivity 0.9245 (§6). **Substantially proved:** The model achieves strong discriminative performance on the ODIR-5K test set. The caveat is that the CVD label is derived from retinal markers of systemic disease (hypertensive retinopathy, vascular changes), not direct cardiac measurement — the model is a proxy, not a scanner (A.1, Q2).
+
+#### Hypothesis 3: Fusion produces a more clinically informative combined risk score
+
+**Result:** The Overall System metrics (AUC 0.9504, F1 0.7819) are arithmetically lower than the CVD model alone (AUC 0.9675, F1 0.9172) because they include the weaker DR model. **Not quantitatively proved** that fusion outperforms the CVD model alone on aggregate test metrics. The clinical justification for fusion — adding DR as a correlated proxy — is preserved, but no head-to-head comparison on a clinically labelled fused-risk dataset was conducted.
+
+#### Hypothesis 4: CCS integration improves false negative detection
+
+**Result:** Conceptually validated by the architecture. The real-world false negative case (§11) demonstrates that for structural cardiac conditions with no retinal manifestation, the CCS from clinical history text is the only mechanism that could raise the score. However, **not quantitatively proved** against a labelled borderline dataset. The fix was validated only by re-running the single test case, which still returned Low Risk (correctly, because the image was genuinely normal).
+
+#### Hypothesis 5: Grad-CAM makes model decisions interpretable
+
+**Result:** Implemented and functional (§3 Step 5). Heatmaps are generated per prediction and stored in the database (§9). The visual output identifies retinal regions influential to the DR classification decision. **Proved for the DR model only** — the CVD model has no explainability output (documented gap in V6.1).
+
+---
+
+### 20.3 What Was Disproved or Left Unresolved
+
+| Claim | Status | Evidence |
+|---|---|---|
+| Weighted CrossEntropyLoss fixes class imbalance | Disproved | F1 improvement 0.6465→0.6483, described as negligible (Change 6) |
+| Multi-agent LLM improves report quality | Not tested | Rejected on hardware/time grounds (Q11, A.3) |
+| System detects structural cardiac conditions | Disproved | False negative test case; structural defects leave no retinal marker (§11, A.1, Q2) |
+| Fusion quantitatively outperforms CVD model alone | Unresolved | No ablation or fused-risk ground truth exists |
+| CCS provides reliable, reproducible scores | Unresolved | No validation of LLM extraction consistency |
+
+---
+
+### 20.4 Comparison to Literature
+
+As documented in §8, the weighted late fusion approach is consistent with established ensemble learning literature on score-level fusion. The use of ResNet-50 and EfficientNet-B4 for medical image classification follows standard transfer learning practice widely reported in the medical AI literature. The use of Grad-CAM for retinal explainability aligns with established XAI practice (Selvaraju et al., 2017, referenced implicitly through the Grad-CAM technique).
+
+The key divergence from typical medical AI studies is the explicit Clinical Safety Mechanism — the documented decision to use post-hoc architectural modifications (multiplier, threshold, CCS) rather than model-level retraining to address false negatives. This is justified in §14 and A.1 and aligns with the principle of clinical conservatism in AI-assisted screening.
+
+The acknowledged limitation of retinal imaging as a CVD proxy — documented extensively in A.1 and Q2 — is consistent with published literature noting that retinal biomarkers reflect microvascular, not macrovascular, pathology.
+
+---
+
+### 20.5 Reflections on the Project
+
+#### What Worked Well
+- EfficientNet-B4 achieved strong CVD classification (AUC 0.9675) with straightforward fine-tuning.
+- The Clinical Safety Mechanism (multiplier + threshold + CCS) provides an auditable, reversible safety layer without degrading model Specificity.
+- The dual-layer LSTM defence (v2 retraining + Safety Override) resolved the class confusion problem for severe DR grades.
+- The full-stack Flask application integrates all components into a working end-to-end demo.
+
+#### What Did Not Work as Expected
+- Weighted CrossEntropyLoss failed to meaningfully improve ResNet-50's F1 (Change 6, §7).
+- The real-world test case produced a false negative that the Clinical Safety Fix could not resolve — because the fix targets borderline scores, not intrinsically low scores from physiologically normal images.
+- BioMistral-7B was intended as the deployed LLM (Q9, A.3) but all operational documentation indicates Mistral-7B is the running model (§1, §2, Change 2).
+
+#### What Was Learned
+1. **Physiological limits matter more than model limits:** The most impactful limitation is not model accuracy but the retina's inability to display macrovascular cardiac pathology. This is irreversible through image-based retraining.
+2. **Post-hoc architectural safety is sometimes preferable to retraining:** Auditable, reversible post-processing mechanisms preserved 99.45% Specificity that aggressive retraining would have destroyed.
+3. **Class imbalance in medical datasets is structurally severe:** Loss weighting alone is insufficient; future work requires data-level intervention (SMOTE for DR grades; not for the false-negative problem which is physiological, not distributional).
+4. **Hardware constrains architecture:** The M3 MacBook Air's 8GB RAM directly caused the rejection of the multi-agent LLM design. System architecture decisions were hardware-driven, not purely scientifically driven.
+
+---
+
+### 20.6 Future Work
+
+As documented in Q10 (§13) and implicitly across §7 and A.1–A.3:
+
+| Priority | Future Work Item | Category |
+|---|---|---|
+| High | Extend Grad-CAM to EfficientNet-B4 for CVD explainability | Architecture |
+| High | Validate CCS extraction with a labelled clinical history dataset | Evaluation |
+| High | Recalculate Specificity/Sensitivity after post-hoc changes | Evaluation |
+| High | Confirm patient-level split for ODIR-5K | Methodology |
+| Medium | Implement SMOTE/GAN augmentation for DR Grade 3/4 | Data |
+| Medium | Test EfficientNet-B4 at native 380×380 resolution | Methodology |
+| Medium | Multi-agent LLM specialisation (DR Agent, CVD Agent, Fusion Agent, Safety Agent) | Architecture |
+| Medium | Replace label-to-caption templating with real paired image-report data | Vision-Language |
+| Medium | Deploy BioMistral-7B as confirmed production LLM | Infrastructure |
+| Low | Add authentication, encryption, and access control to MySQL | Security |
+| Low | Conduct prospective clinical validation with ophthalmologists and cardiologists | Clinical |
+| Low | Host Ollama on internal NVMe SSD or dedicated inference server to reduce cold-start latency | Infrastructure |
+
+---
+
+### 20.7 Final Position
+
+This dissertation presents a **technical demonstration of an XAI pipeline architecture** for retinal-based dual-risk assessment. It is explicitly and consistently documented as a research prototype (§1 disclaimer). It does not claim clinical utility — no prospective validation has been conducted (Q10) and the one real-world test produced a false negative (§11).
+
+The defensible academic contributions are:
+1. A working, integrated end-to-end pipeline combining DR grading, CVD risk scoring, Grad-CAM explainability, LSTM captioning, and LLM reporting in a single Flask application.
+2. A documented Clinical Safety Mechanism (CCS + 1.25× multiplier + lowered threshold) that addresses a class of false negatives unreachable by image-based retraining.
+3. A documented dual-layer LSTM captioning defence (v2 retraining + Safety Override).
+4. A transparent account of what was tried, what failed, and why — including weighted loss, SMOTE, multi-agent LLM, and MedGemma — constituting a legitimate engineering decision log.
+
+These contributions meet the standard of a research prototype demonstrating applied machine learning, explainability engineering, and clinical safety awareness. They do not meet the standard required to claim clinical deployment readiness.
+
