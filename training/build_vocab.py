@@ -14,7 +14,7 @@ import pickle
 
 
 class Vocabulary:
-    """Bidirectional word ↔ index mapping with four special tokens."""
+    """Bidirectional word <-> index mapping with four special tokens."""
 
     def __init__(self):
         self.word2idx = {}
