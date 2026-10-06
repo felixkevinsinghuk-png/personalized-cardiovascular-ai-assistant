@@ -97,5 +97,3 @@ This project is a research prototype web application that analyses a retinal fun
 4. **Access the Web Interface:**
    Open your browser and navigate to `http://localhost:5001`.
 
-## Further Reading
-For deeper insights into the project's architecture, ML methodologies, clinical safety features (like the false negative guardrails), and known limitations, please refer to the `Documentation.md` and `Technical_Decisions_and_Limitations.md` files included in this repository.
