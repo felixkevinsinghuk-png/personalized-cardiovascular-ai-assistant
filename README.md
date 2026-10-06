@@ -4,9 +4,9 @@
 
 This project is a research prototype web application that analyses a retinal fundus image and produces a Diabetic Retinopathy (DR) grade, a Cardiovascular Disease (CVD) risk score, a fused risk level, and explainable AI insights (Grad-CAM heatmaps and an LLM-generated clinical report).
 
-> ⚠️ **RESEARCH DISCLAIMER:** This is an academic prototype only. It does NOT provide medical diagnoses.
+> **RESEARCH DISCLAIMER:** This is an academic prototype only. It does NOT provide medical diagnoses.
 
-## 🚀 Features
+## Features
 
 1. **Diabetic Retinopathy (DR) Grading:** Classifies DR (0–4) using a fine-tuned ResNet-50 model.
 2. **Cardiovascular Disease (CVD) Risk Score:** Predicts binary CVD risk (0.0–1.0) using a fine-tuned EfficientNet-B4 model.
@@ -17,7 +17,7 @@ This project is a research prototype web application that analyses a retinal fun
 7. **Patient History Integration:** Factors in clinical history (text) to adjust the final risk score.
 8. **Prediction History:** Stores and displays past predictions using a MySQL database.
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Component | Technology | Purpose |
 |---|---|---|
@@ -30,14 +30,14 @@ This project is a research prototype web application that analyses a retinal fun
 | **Hardware Accel.** | Apple M3 MPS Backend | Local GPU acceleration on macOS |
 | **Frontend** | HTML, CSS, Vanilla JS | Interactive Web UI |
 
-## 🧠 Machine Learning Models
+## Machine Learning Models
 
 - **ResNet-50 (DR):** Trained on the APTOS 2019 dataset (3,662 images). Achieved an AUC of 0.9338.
 - **EfficientNet-B4 (CVD):** Trained on the ODIR-5K dataset (12,460 images). Achieved an AUC of 0.9594.
 - **LSTM Captioner:** Translates visual features into clinical captions, trained via Label-to-Caption templating.
 - **Fusion Logic:** Score-level fusion combining DR severity and direct CVD risk, heavily weighted towards direct CVD indicators and adjusted with a clinical safety multiplier (`1.25x`) to prevent false negatives.
 
-## ⚙️ How It Works (Pipeline)
+## How It Works (Pipeline)
 
 1. **Preprocess:** Resize (224×224), normalise, and convert image to float32 tensor.
 2. **CNN Inference:** Run ResNet-50 (DR) and EfficientNet-B4 (CVD) to get raw predictions.
@@ -47,11 +47,11 @@ This project is a research prototype web application that analyses a retinal fun
 6. **Database Save:** Commit all data to the MySQL database.
 7. **Results Page:** Render the complete analysis to the user.
 
-## 💻 Installation & Setup
+## Installation & Setup
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/felixkevinsinghuk-png/final-year-project.git
+   git clone https://github.com/felixkevinsinghuk-png/personalized-cardiovascular-ai-assistant.git
    cd final-year-project
    ```
 
@@ -69,18 +69,25 @@ This project is a research prototype web application that analyses a retinal fun
      ollama pull biomistral
      ```
 
-## 🚀 Running the Application
+## Running the Application
 
 1. **Start MySQL:**
-   ```bash
-   brew services start mysql
-   ```
+   - **macOS:**
+     ```bash
+     brew services start mysql
+     ```
+   - **Windows:** Start MySQL through the MySQL Notifier or Windows Services (Search for `services.msc` and start the MySQL service).
 
 2. **Start Ollama Server:**
-   ```bash
-   # Adjust path to where your models are stored if necessary
-   OLLAMA_MODELS="/path/to/ollama_models" ollama serve &
-   ```
+   - **macOS:**
+     ```bash
+     # Adjust path to where your models are stored if necessary
+     OLLAMA_MODELS="/path/to/ollama_models" ollama serve &
+     ```
+   - **Windows:** Open the Ollama app from the Start Menu, or run in PowerShell:
+     ```powershell
+     $env:OLLAMA_MODELS="C:\path\to\ollama_models"; ollama serve
+     ```
 
 3. **Run the Flask App:**
    ```bash
@@ -90,5 +97,5 @@ This project is a research prototype web application that analyses a retinal fun
 4. **Access the Web Interface:**
    Open your browser and navigate to `http://localhost:5001`.
 
-## 📚 Further Reading
+## Further Reading
 For deeper insights into the project's architecture, ML methodologies, clinical safety features (like the false negative guardrails), and known limitations, please refer to the `Documentation.md` and `Technical_Decisions_and_Limitations.md` files included in this repository.

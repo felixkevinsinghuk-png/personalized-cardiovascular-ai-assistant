@@ -13,7 +13,7 @@
 # Defined here so it can be imported by safety_filter.py without circular imports.
 MANDATORY_DISCLAIMER = (
     "\n\n---\n"
-    "⚠️ RESEARCH DISCLAIMER: This analysis is produced by an automated AI system "
+    "RESEARCH DISCLAIMER: This analysis is produced by an automated AI system "
     "for academic research purposes only. It does NOT constitute medical advice, "
     "diagnosis, or treatment. Always consult a qualified healthcare professional "
     "for any health concerns. This tool has not been validated for clinical use."

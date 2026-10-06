@@ -44,7 +44,7 @@ def apply_safety_filter(raw_response: str) -> tuple[str, bool]:
     triggered = any(phrase in raw_response.lower() for phrase in BLOCKED_PHRASES)
     response_text = SAFE_FALLBACK if triggered else raw_response.strip()
 
-    # The prompt instructs BioMistral to end with the disclaimer, so it usually does.
+    # The prompt instructs Mistral-7B to end with the disclaimer, so it usually does.
     # Only append it if it's genuinely missing — otherwise we get it twice.
     if "RESEARCH DISCLAIMER" not in response_text:
         response_text = response_text + MANDATORY_DISCLAIMER

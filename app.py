@@ -29,7 +29,6 @@ from ml.fusion import fuse_scores, get_dr_label
 from ml.gradcam import generate_heatmap
 from llm.prompt_builder import build_prompt, build_chat_prompt
 from llm.biomistral import query_biomistral
-from llm.medgemma import query_medgemma
 from llm.clinical_context_extractor import extract_clinical_context_score
 from llm.safety_filter import apply_safety_filter
 from models.model_loader import load_models

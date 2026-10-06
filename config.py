@@ -27,8 +27,8 @@ class Config:
     FUSION_W2 = 0.6
 
     # Risk thresholds applied after the 1.25× safety multiplier
-    RISK_LOW_THRESHOLD  = 0.25
-    RISK_HIGH_THRESHOLD = 0.67
+    RISK_LOW_THRESHOLD  = 0.20   # matches fusion.py deployed threshold (< 0.20 = Low)
+    RISK_HIGH_THRESHOLD = 0.65   # matches fusion.py deployed threshold (> 0.65 = High)
 
     # Ollama (BioMistral locally via REST API)
     OLLAMA_URL     = "http://localhost:11434/api/generate"

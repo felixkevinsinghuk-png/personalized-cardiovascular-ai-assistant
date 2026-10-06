@@ -173,7 +173,7 @@ def main():
             best_val_auc = val_auc
             patience_counter = 0
             torch.save(model.state_dict(), Config.EFFICIENTNET_WEIGHTS)
-            print(f"  ✓ Saved best model (Val AUC: {best_val_auc:.4f})")
+            print(f"  * Saved best model (Val AUC: {best_val_auc:.4f})")
         else:
             patience_counter += 1
             if patience_counter >= PATIENCE:
